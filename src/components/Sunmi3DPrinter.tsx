@@ -1,0 +1,722 @@
+import React, { useEffect, useRef, useState } from 'react';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { RotateCcw, Eye, Sparkles, Maximize2, Zap, Play, Scissors, Layers, Check, Volume2 } from 'lucide-react';
+import { ReceiptData, Alignment, ReceiptLine, TextSpan } from '../lib/escpos';
+
+interface Sunmi3DPrinterProps {
+  data: ReceiptData;
+  width: '58mm' | '80mm';
+  printedLineCount: number;
+  isPrinting: boolean;
+  activeCutAnimation: boolean;
+  onTriggerCut?: () => void;
+  onStartPrint?: () => void;
+}
+
+export const Sunmi3DPrinter: React.FC<Sunmi3DPrinterProps> = ({
+  data,
+  width,
+  printedLineCount,
+  isPrinting,
+  activeCutAnimation,
+  onTriggerCut,
+  onStartPrint,
+}) => {
+  const mountRef = useRef<HTMLDivElement>(null);
+  const textureCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Three.js object references
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
+  
+  const paperMeshRef = useRef<THREE.Mesh | null>(null);
+  const paperTextureRef = useRef<THREE.CanvasTexture | null>(null);
+  const ledMeshRef = useRef<THREE.Mesh | null>(null);
+  const ledLightRef = useRef<THREE.PointLight | null>(null);
+  const cutterBladeRef = useRef<THREE.Mesh | null>(null);
+  const paperRollRef = useRef<THREE.Mesh | null>(null);
+  const topCoverRef = useRef<THREE.Group | null>(null);
+
+  const [isHatchOpen, setIsHatchOpen] = useState(false);
+  const [cameraPreset, setCameraPreset] = useState<'3/4' | 'macro' | 'front' | 'top'>('macro');
+  const [isBrightStudio, setIsBrightStudio] = useState(true);
+
+  // Helper to draw text lines onto offscreen 2D canvas for Three.js texture
+  const updateReceiptTexture = () => {
+    if (!textureCanvasRef.current) {
+      textureCanvasRef.current = document.createElement('canvas');
+    }
+
+    const canvas = textureCanvasRef.current;
+    // High-DPI thermal paper texture resolution for crisp legibility
+    const canvasWidth = width === '58mm' ? 1024 : 1280;
+    // Calculate required height based on line count
+    const visibleLines = data.lines.slice(0, printedLineCount);
+    const lineSpacing = 52;
+    const padding = 70;
+    const minHeight = 1600;
+    const requiredHeight = Math.max(minHeight, visibleLines.length * lineSpacing + padding * 2 + 150);
+
+    canvas.width = canvasWidth;
+    canvas.height = requiredHeight;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Background: Bright pure white thermal receipt paper texture
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvasWidth, requiredHeight);
+
+    // Subtle thermal paper texture grain lines
+    ctx.fillStyle = 'rgba(0,0,0,0.012)';
+    for (let y = 0; y < requiredHeight; y += 6) {
+      ctx.fillRect(0, y, canvasWidth, 1);
+    }
+
+    // Top paper header margin
+    let currentY = padding + 40;
+
+    // Draw visible parsed receipt lines
+    visibleLines.forEach((line) => {
+      ctx.save();
+
+      // Horizontal alignment
+      let x = canvasWidth / 2;
+      ctx.textAlign = 'center';
+      if (line.align === Alignment.LEFT) {
+        x = padding;
+        ctx.textAlign = 'left';
+      } else if (line.align === Alignment.RIGHT) {
+        x = canvasWidth - padding;
+        ctx.textAlign = 'right';
+      }
+
+      const fullLineText = line.spans.map((s) => s.text).join('');
+      const firstSpan = line.spans[0];
+      const isReverse = firstSpan?.style.reverse;
+      const isBold = line.spans.some((s) => s.style.bold);
+      const isDoubleHeight = line.spans.some((s) => s.style.doubleHeight || s.style.scaleY > 1);
+      const isDoubleWidth = line.spans.some((s) => s.style.doubleWidth || s.style.scaleX > 1);
+
+      let fontSize = 42;
+      if (isDoubleHeight && isDoubleWidth) fontSize = 68;
+      else if (isDoubleHeight) fontSize = 58;
+      else if (isDoubleWidth) fontSize = 50;
+
+      // Always use bold or heavy weight for crisp thermal print rendering in 3D
+      const fontStyle = '700 ';
+      ctx.font = `${fontStyle}${fontSize}px "Courier New", Courier, monospace`;
+
+      if (isReverse) {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(padding / 2, currentY - fontSize + 8, canvasWidth - padding, fontSize * 1.35);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(fullLineText, x, currentY);
+      } else if (firstSpan?.style.color === 'red') {
+        ctx.fillStyle = '#b91c1c';
+        ctx.strokeStyle = '#b91c1c';
+        ctx.lineWidth = 1.2;
+        ctx.fillText(fullLineText, x, currentY);
+        ctx.strokeText(fullLineText, x, currentY);
+      } else {
+        // Deep jet black text with crisp stroke outline for maximum thermal density
+        ctx.fillStyle = '#000000';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1.2;
+        ctx.fillText(fullLineText, x, currentY);
+        ctx.strokeText(fullLineText, x, currentY);
+      }
+
+      currentY += fontSize * 1.35;
+
+      if (line.hasCutHere) {
+        ctx.setLineDash([12, 10]);
+        ctx.strokeStyle = '#dc2626';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(20, currentY + 15);
+        ctx.lineTo(canvasWidth - 20, currentY + 15);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        currentY += 45;
+      }
+
+      ctx.restore();
+    });
+
+    // Update Three.js Texture
+    if (paperTextureRef.current) {
+      paperTextureRef.current.needsUpdate = true;
+    }
+  };
+
+  // Setup Three.js 3D Scene
+  useEffect(() => {
+    if (!mountRef.current) return;
+
+    const container = mountRef.current;
+    const widthPx = container.clientWidth;
+    const heightPx = container.clientHeight;
+
+    // 1. Scene
+    const scene = new THREE.Scene();
+    sceneRef.current = scene;
+
+    const studioBgColor = isBrightStudio ? 0xf1f5f9 : 0x181a20; // Crisp light slate vs dark studio
+    scene.background = new THREE.Color(studioBgColor);
+
+    // 2. Camera - Default to Macro Reading view
+    const camera = new THREE.PerspectiveCamera(42, widthPx / heightPx, 0.1, 100);
+    camera.position.set(0, 1.8, 2.7);
+    cameraRef.current = camera;
+
+    // 3. Renderer
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+    renderer.setSize(widthPx, heightPx);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.LinearToneMapping; // Preserves pure bright white thermal paper without dimming
+    renderer.toneMappingExposure = 1.35;
+
+    container.innerHTML = '';
+    container.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+
+    // 4. OrbitControls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxPolarAngle = Math.PI / 2 + 0.05; // Don't go below floor
+    controls.minDistance = 1.0;
+    controls.maxDistance = 10;
+    controls.target.set(0, 1.42, 0);
+    controlsRef.current = controls;
+
+    // 5. Bright Studio Lighting Setup
+    // Sky/Ground hemisphere fill light
+    const hemiLight = new THREE.HemisphereLight(0xffffff, isBrightStudio ? 0xcbcbcb : 0x444444, 2.8);
+    scene.add(hemiLight);
+
+    // Dedicated Paper Front Spot Light (illuminates receipt text directly!)
+    const paperFrontSpot = new THREE.DirectionalLight(0xffffff, 4.2);
+    paperFrontSpot.position.set(0, 2.5, 4.8);
+    scene.add(paperFrontSpot);
+
+    // Main Studio Overhead Soft Light
+    const mainKeyLight = new THREE.DirectionalLight(0xffffff, 3.2);
+    mainKeyLight.position.set(2, 6, 4);
+    mainKeyLight.castShadow = true;
+    mainKeyLight.shadow.mapSize.width = 2048;
+    mainKeyLight.shadow.mapSize.height = 2048;
+    mainKeyLight.shadow.bias = -0.0001;
+    scene.add(mainKeyLight);
+
+    // Soft rim cyan accent light
+    const rimLight = new THREE.DirectionalLight(0x38bdf8, 2.0);
+    rimLight.position.set(-4, 3, -3);
+    scene.add(rimLight);
+
+    // Warm Sunmi Orange ambient glow
+    const frontBounceLight = new THREE.PointLight(0xff6b00, 2.0, 4);
+    frontBounceLight.position.set(0, 0.8, 1.8);
+    scene.add(frontBounceLight);
+
+    // 6. Studio Ground Platform
+    const groundGeo = new THREE.CircleGeometry(8, 64);
+    const groundMat = new THREE.MeshStandardMaterial({
+      color: isBrightStudio ? 0xe2e8f0 : 0x222530,
+      roughness: 0.6,
+      metalness: 0.1,
+    });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.01;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // Ground Grid helper ring
+    const grid = new THREE.GridHelper(10, 30, 0xff6b00, isBrightStudio ? 0xc2c9d6 : 0x333745);
+    grid.position.y = 0.001;
+    scene.add(grid);
+
+    // -------------------------------------------------------------
+    // BUILD 3D SUNMI POS PRINTER MODEL (PROCEDURAL HIGH-DETAIL MESH)
+    // -------------------------------------------------------------
+    const printerGroup = new THREE.Group();
+
+    // Material Definitions
+    const darkBodyMat = new THREE.MeshStandardMaterial({
+      color: 0x1e2025,
+      roughness: 0.35,
+      metalness: 0.4,
+    });
+
+    const glossyCapMat = new THREE.MeshPhysicalMaterial({
+      color: 0x111215,
+      roughness: 0.1,
+      metalness: 0.1,
+      transmission: 0.4, // Semi-transparent hatch window
+      transparent: true,
+      opacity: 0.9,
+    });
+
+    const sunmiOrangeMat = new THREE.MeshStandardMaterial({
+      color: 0xff5500, // Sunmi Brand Signature Orange
+      roughness: 0.2,
+      metalness: 0.1,
+      emissive: 0xff3300,
+      emissiveIntensity: 0.15,
+    });
+
+    const chromeMat = new THREE.MeshStandardMaterial({
+      color: 0xcccccc,
+      roughness: 0.1,
+      metalness: 0.9,
+    });
+
+    const rubberFeetMat = new THREE.MeshStandardMaterial({
+      color: 0x0a0a0c,
+      roughness: 0.9,
+    });
+
+    // 1. Main Base Body Chassis
+    const baseWidth = 1.6;
+    const baseHeight = 1.1;
+    const baseDepth = 2.2;
+
+    const baseGeo = new THREE.BoxGeometry(baseWidth, baseHeight, baseDepth);
+    const baseMesh = new THREE.Mesh(baseGeo, darkBodyMat);
+    baseMesh.position.y = baseHeight / 2;
+    baseMesh.castShadow = true;
+    baseMesh.receiveShadow = true;
+    printerGroup.add(baseMesh);
+
+    // Rubber Feet
+    const footGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.06, 16);
+    [
+      [-0.65, 0.03, -0.85],
+      [0.65, 0.03, -0.85],
+      [-0.65, 0.03, 0.85],
+      [0.65, 0.03, 0.85],
+    ].forEach(([fx, fy, fz]) => {
+      const foot = new THREE.Mesh(footGeo, rubberFeetMat);
+      foot.position.set(fx, fy, fz);
+      printerGroup.add(foot);
+    });
+
+    // 2. Front Curved Bezel with Sunmi Orange Accent Line
+    const frontAccentGeo = new THREE.BoxGeometry(baseWidth + 0.02, 0.08, 0.1);
+    const frontAccent = new THREE.Mesh(frontAccentGeo, sunmiOrangeMat);
+    frontAccent.position.set(0, 0.65, baseDepth / 2 + 0.02);
+    frontAccent.castShadow = true;
+    printerGroup.add(frontAccent);
+
+    // Sunmi Logo Tag Badge
+    const logoBadgeGeo = new THREE.BoxGeometry(0.5, 0.15, 0.02);
+    const logoBadge = new THREE.Mesh(logoBadgeGeo, chromeMat);
+    logoBadge.position.set(0, 0.45, baseDepth / 2 + 0.015);
+    printerGroup.add(logoBadge);
+
+    // 3. Status LED Light Ring & Power Button
+    const ledGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.04, 32);
+    const ledMat = new THREE.MeshStandardMaterial({
+      color: 0x10b981, // Emerald green standby LED
+      emissive: 0x10b981,
+      emissiveIntensity: 0.8,
+    });
+    const ledMesh = new THREE.Mesh(ledGeo, ledMat);
+    ledMesh.rotation.x = Math.PI / 2;
+    ledMesh.position.set(-0.5, 0.85, baseDepth / 2 + 0.015);
+    printerGroup.add(ledMesh);
+    ledMeshRef.current = ledMesh;
+
+    const ledPointLight = new THREE.PointLight(0x10b981, 0.8, 1.2);
+    ledPointLight.position.set(-0.5, 0.85, baseDepth / 2 + 0.1);
+    printerGroup.add(ledPointLight);
+    ledLightRef.current = ledPointLight;
+
+    // Feed Button
+    const feedBtnGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.04, 32);
+    const feedBtn = new THREE.Mesh(feedBtnGeo, darkBodyMat);
+    feedBtn.rotation.x = Math.PI / 2;
+    feedBtn.position.set(0.5, 0.85, baseDepth / 2 + 0.015);
+    printerGroup.add(feedBtn);
+
+    // 4. Top Paper Hatch Cover (Hinged Group)
+    const hatchGroup = new THREE.Group();
+    hatchGroup.position.set(0, baseHeight, -baseDepth / 2 + 0.2); // Pivot hinge at back
+
+    const hatchGeo = new THREE.BoxGeometry(baseWidth - 0.08, 0.35, baseDepth - 0.3);
+    const hatchMesh = new THREE.Mesh(hatchGeo, glossyCapMat);
+    hatchMesh.position.set(0, 0.15, (baseDepth - 0.3) / 2);
+    hatchMesh.castShadow = true;
+    hatchGroup.add(hatchMesh);
+
+    // Hatch Orange Open Handle / Latch
+    const latchGeo = new THREE.BoxGeometry(0.3, 0.08, 0.08);
+    const latchMesh = new THREE.Mesh(latchGeo, sunmiOrangeMat);
+    latchMesh.position.set(0, 0.3, baseDepth - 0.4);
+    hatchGroup.add(latchMesh);
+
+    printerGroup.add(hatchGroup);
+    topCoverRef.current = hatchGroup;
+
+    // 5. Internal Thermal Paper Roll
+    const rollRadius = 0.42;
+    const rollWidth = baseWidth - 0.25;
+    const rollGeo = new THREE.CylinderGeometry(rollRadius, rollRadius, rollWidth, 32);
+    const rollMat = new THREE.MeshStandardMaterial({
+      color: 0xf5f5f0, // White paper roll
+      roughness: 0.9,
+    });
+    const paperRoll = new THREE.Mesh(rollGeo, rollMat);
+    paperRoll.rotation.z = Math.PI / 2;
+    paperRoll.position.set(0, baseHeight - 0.1, 0.1);
+    paperRoll.castShadow = true;
+    printerGroup.add(paperRoll);
+    paperRollRef.current = paperRoll;
+
+    // Paper Core Cylinder (Dark plastic center tube)
+    const coreGeo = new THREE.CylinderGeometry(0.1, 0.1, rollWidth + 0.02, 16);
+    const coreMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+    const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+    coreMesh.rotation.z = Math.PI / 2;
+    coreMesh.position.set(0, baseHeight - 0.1, 0.1);
+    printerGroup.add(coreMesh);
+
+    // 6. Paper Exit Slot & Metallic Tear Cutter Blade Bar
+    const slotX = 0;
+    const slotY = baseHeight + 0.18;
+    const slotZ = baseDepth / 2 - 0.25;
+
+    const cutterBladeGeo = new THREE.BoxGeometry(baseWidth - 0.1, 0.04, 0.08);
+    const cutterBlade = new THREE.Mesh(cutterBladeGeo, sunmiOrangeMat);
+    cutterBlade.position.set(slotX, slotY, slotZ);
+    cutterBlade.castShadow = true;
+    printerGroup.add(cutterBlade);
+    cutterBladeRef.current = cutterBlade;
+
+    // -------------------------------------------------------------
+    // 7. DYNAMIC ANIMATED 3D THERMAL RECEIPT SHEET MESH
+    // -------------------------------------------------------------
+    // Create initial canvas texture for paper
+    updateReceiptTexture();
+    const paperCanvas = textureCanvasRef.current!;
+    const paperTexture = new THREE.CanvasTexture(paperCanvas);
+    paperTexture.colorSpace = THREE.SRGBColorSpace;
+    paperTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    paperTexture.minFilter = THREE.LinearFilter;
+    paperTexture.magFilter = THREE.LinearFilter;
+    paperTextureRef.current = paperTexture;
+
+    // Create curved paper plane geometry emerging from slot
+    const paperWidth3D = width === '58mm' ? 1.25 : 1.45;
+    const initialPaperLength = 1.8;
+
+    const paperMat = new THREE.MeshStandardMaterial({
+      map: paperTexture,
+      roughness: 0.8,
+      metalness: 0.0,
+      emissive: new THREE.Color(0xffffff),
+      emissiveMap: paperTexture,
+      emissiveIntensity: 0.28, // Self-illuminates thermal paper so text is crisp and unshadowed!
+      side: THREE.DoubleSide,
+    });
+
+    const paperGeo = new THREE.PlaneGeometry(paperWidth3D, initialPaperLength, 1, 32);
+
+    // Gently curve paper geometry forward as it feeds out
+    const pos = paperGeo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const yVal = pos.getY(i);
+      // Curve lower/emerging part forward (+Z) and down (-Y)
+      const normalizedY = (yVal + initialPaperLength / 2) / initialPaperLength;
+      const forwardCurve = Math.sin(normalizedY * Math.PI * 0.7) * 0.25;
+      pos.setZ(i, forwardCurve);
+    }
+    paperGeo.computeVertexNormals();
+
+    const paperMesh = new THREE.Mesh(paperGeo, paperMat);
+    // Position paper starting right at the printer slot
+    paperMesh.position.set(slotX, slotY + initialPaperLength / 2, slotZ + 0.05);
+    paperMesh.castShadow = true;
+    paperMesh.receiveShadow = true;
+    printerGroup.add(paperMesh);
+    paperMeshRef.current = paperMesh;
+
+    scene.add(printerGroup);
+
+    // -------------------------------------------------------------
+    // ANIMATION RENDER LOOP
+    // -------------------------------------------------------------
+    let animationFrameId: number;
+    let clock = new THREE.Clock();
+
+    const animate = () => {
+      animationFrameId = requestAnimationFrame(animate);
+
+      const elapsedTime = clock.getElapsedTime();
+
+      // Gentle floating / idle ambient pulse on LED light when printing
+      if (isPrinting) {
+        if (ledMeshRef.current) {
+          const pulse = (Math.sin(elapsedTime * 12) + 1) / 2;
+          (ledMeshRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.5 + pulse * 0.8;
+          (ledMeshRef.current.material as THREE.MeshStandardMaterial).color.setHex(0xf59e0b); // Amber pulse
+        }
+        if (ledLightRef.current) {
+          ledLightRef.current.color.setHex(0xf59e0b);
+        }
+
+        // Rotate paper roll slightly inside chamber during print feed
+        if (paperRollRef.current) {
+          paperRollRef.current.rotation.x += 0.04;
+        }
+      } else {
+        if (ledMeshRef.current) {
+          (ledMeshRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.8;
+          (ledMeshRef.current.material as THREE.MeshStandardMaterial).color.setHex(0x10b981); // Emerald standby
+        }
+        if (ledLightRef.current) {
+          ledLightRef.current.color.setHex(0x10b981);
+        }
+      }
+
+      // Smooth hatch open / close animation
+      if (topCoverRef.current) {
+        const targetRotX = isHatchOpen ? -Math.PI / 4 : 0;
+        topCoverRef.current.rotation.x += (targetRotX - topCoverRef.current.rotation.x) * 0.1;
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    };
+
+    animate();
+
+    // Responsive Window Resize Handler
+    const handleResize = () => {
+      if (!mountRef.current || !rendererRef.current || !cameraRef.current) return;
+      const w = mountRef.current.clientWidth;
+      const h = mountRef.current.clientHeight;
+      cameraRef.current.aspect = w / h;
+      cameraRef.current.updateProjectionMatrix();
+      rendererRef.current.setSize(w, h);
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      window.removeEventListener('resize', handleResize);
+      if (rendererRef.current && rendererRef.current.domElement) {
+        rendererRef.current.domElement.remove();
+      }
+    };
+  }, [width, isBrightStudio]);
+
+  // Update receipt paper texture and length as printed lines advance
+  useEffect(() => {
+    updateReceiptTexture();
+
+    // Scale paper mesh length dynamically with printed content
+    if (paperMeshRef.current) {
+      const visibleLines = data.lines.slice(0, printedLineCount);
+      const lineFactor = Math.max(1, visibleLines.length);
+      const targetPaperLength = Math.min(6.0, 1.2 + lineFactor * 0.12);
+
+      // Re-curve geometry for new length
+      const paperWidth3D = width === '58mm' ? 1.25 : 1.45;
+      const newGeo = new THREE.PlaneGeometry(paperWidth3D, targetPaperLength, 1, 32);
+      const pos = newGeo.attributes.position;
+
+      for (let i = 0; i < pos.count; i++) {
+        const yVal = pos.getY(i);
+        const normalizedY = (yVal + targetPaperLength / 2) / targetPaperLength;
+        const forwardCurve = Math.sin(normalizedY * Math.PI * 0.65) * 0.35 * Math.min(1.5, targetPaperLength / 2);
+        pos.setZ(i, forwardCurve);
+      }
+      newGeo.computeVertexNormals();
+
+      paperMeshRef.current.geometry.dispose();
+      paperMeshRef.current.geometry = newGeo;
+
+      const baseHeight = 1.1;
+      const baseDepth = 2.2;
+      const slotY = baseHeight + 0.18;
+      const slotZ = baseDepth / 2 - 0.25;
+
+      paperMeshRef.current.position.set(0, slotY + targetPaperLength / 2, slotZ + 0.05);
+    }
+  }, [printedLineCount, data.lines, width]);
+
+  // Trigger Cutter Blade Animation
+  useEffect(() => {
+    if (!activeCutAnimation || !cutterBladeRef.current) return;
+
+    let startTime = performance.now();
+    const duration = 600;
+
+    const animateCut = () => {
+      const elapsed = performance.now() - startTime;
+      const progress = Math.min(1, elapsed / duration);
+
+      if (cutterBladeRef.current) {
+        // Blade slide and flash effect
+        const slideOffset = Math.sin(progress * Math.PI) * 0.6;
+        cutterBladeRef.current.position.x = slideOffset;
+        (cutterBladeRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.2 + Math.sin(progress * Math.PI) * 1.5;
+      }
+
+      if (progress < 1) {
+        requestAnimationFrame(animateCut);
+      } else if (cutterBladeRef.current) {
+        cutterBladeRef.current.position.x = 0;
+        (cutterBladeRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.15;
+      }
+    };
+
+    animateCut();
+  }, [activeCutAnimation]);
+
+  // Camera Presets
+  const setCameraView = (view: 'macro' | '3/4' | 'front' | 'top') => {
+    setCameraPreset(view);
+    if (!cameraRef.current || !controlsRef.current) return;
+
+    const cam = cameraRef.current;
+    const ctrl = controlsRef.current;
+
+    if (view === 'macro') {
+      // Zoomed macro view framing printed receipt paper directly
+      cam.position.set(0, 1.8, 2.7);
+      ctrl.target.set(0, 1.45, 0);
+    } else if (view === '3/4') {
+      // Classic 3D perspective angle showing full printer body
+      cam.position.set(2.2, 2.8, 3.8);
+      ctrl.target.set(0, 0.9, 0);
+    } else if (view === 'front') {
+      // Direct front view
+      cam.position.set(0, 1.6, 3.8);
+      ctrl.target.set(0, 1.2, 0);
+    } else if (view === 'top') {
+      // Overhead top slot view
+      cam.position.set(0, 5.2, 0.2);
+      ctrl.target.set(0, 0.5, 0);
+    }
+    ctrl.update();
+  };
+
+  return (
+    <div className="w-full h-full relative flex flex-col bg-neutral-950 overflow-hidden select-none">
+      {/* 3D WebGL Canvas Render Stage */}
+      <div ref={mountRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
+
+      {/* Interactive 3D HUD Controls Toolbar */}
+      <div className="absolute top-4 left-4 z-20 flex flex-wrap items-center gap-2">
+        {/* Camera Angles */}
+        <div className="flex items-center bg-neutral-900/90 backdrop-blur-md p-1 rounded-xl border border-neutral-800 shadow-lg">
+          <button
+            onClick={() => setCameraView('macro')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+              cameraPreset === 'macro'
+                ? 'bg-amber-500 text-white shadow-xs'
+                : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+            }`}
+            title="Receipt Zoom View"
+          >
+            <Maximize2 size={13} />
+            <span>Read Receipt</span>
+          </button>
+          <button
+            onClick={() => setCameraView('3/4')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+              cameraPreset === '3/4'
+                ? 'bg-amber-500 text-white shadow-xs'
+                : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+            }`}
+          >
+            <Eye size={13} />
+            <span>3D Angle</span>
+          </button>
+          <button
+            onClick={() => setCameraView('front')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+              cameraPreset === 'front'
+                ? 'bg-amber-500 text-white shadow-xs'
+                : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+            }`}
+          >
+            <span>Front View</span>
+          </button>
+          <button
+            onClick={() => setCameraView('top')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+              cameraPreset === 'top'
+                ? 'bg-amber-500 text-white shadow-xs'
+                : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+            }`}
+          >
+            <span>Top Feed</span>
+          </button>
+        </div>
+
+        {/* Toggle Hatch Cover */}
+        <button
+          onClick={() => setIsHatchOpen(!isHatchOpen)}
+          className={`px-3 py-1.5 text-xs font-semibold rounded-xl backdrop-blur-md border transition-all flex items-center gap-1.5 shadow-lg ${
+            isHatchOpen
+              ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+              : 'bg-neutral-900/90 text-neutral-300 border-neutral-800 hover:bg-neutral-800'
+          }`}
+        >
+          <Layers size={13} />
+          <span>{isHatchOpen ? 'Close Chamber' : 'Inspect Paper Roll'}</span>
+        </button>
+      </div>
+
+      {/* Top Right Live Status Badge */}
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-2 bg-neutral-900/90 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-neutral-800 text-xs font-mono shadow-lg">
+        <span className={`w-2.5 h-2.5 rounded-full ${isPrinting ? 'bg-amber-500 animate-ping' : 'bg-emerald-500'}`} />
+        <span className="text-neutral-200 font-bold uppercase tracking-wider">Sunmi Cloud POS 3D</span>
+      </div>
+
+      {/* Bottom Floating Interactive Action Bar */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-neutral-900/90 backdrop-blur-md p-2 rounded-2xl border border-neutral-800/90 shadow-2xl">
+        <button
+          onClick={onStartPrint}
+          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-xs font-bold shadow-md transition-all active:scale-95"
+        >
+          <Play size={14} fill="currentColor" />
+          <span>Print 3D Feed</span>
+        </button>
+
+        <button
+          onClick={onTriggerCut}
+          className="flex items-center gap-1.5 px-3 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded-xl text-xs font-semibold border border-neutral-700 transition-all active:scale-95"
+          title="Cut Receipt"
+        >
+          <Scissors size={14} className="text-amber-400" />
+          <span>Cut Paper</span>
+        </button>
+
+        <button
+          onClick={() => setCameraView('macro')}
+          className="p-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white rounded-xl border border-neutral-700 transition-all"
+          title="Reset Camera View to Read Receipt"
+        >
+          <RotateCcw size={15} />
+        </button>
+      </div>
+
+      {/* Drag & Rotate Instruction Overlay Banner */}
+      <div className="absolute bottom-2 left-4 z-10 text-[11px] text-neutral-500 font-mono pointer-events-none hidden sm:block">
+        💡 Drag to rotate 3D Sunmi Printer • Scroll to zoom • Right-click drag to pan
+      </div>
+    </div>
+  );
+};

@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Play, RotateCcw, Volume2, VolumeX, Scissors, Sparkles, 
   AlertCircle, Bell, DollarSign, CheckCircle2, Download, 
-  Image as ImageIcon, Code, Cpu, ChevronDown, Check, Printer, Gauge
+  Image as ImageIcon, Code, Cpu, ChevronDown, Check, Printer, Gauge,
+  Box, FileText
 } from 'lucide-react';
 import { toPng, toSvg } from 'html-to-image';
 import { ReceiptData, Alignment } from '../lib/escpos';
@@ -11,6 +12,7 @@ import { printerAudio } from '../lib/audio';
 import { renderReceiptToSvg, renderReceiptToHtml } from '../lib/renderHtml';
 import { copyToClipboard } from '../lib/clipboard';
 import { ApiModal } from './ApiModal';
+import { Sunmi3DPrinter } from './Sunmi3DPrinter';
 
 interface ReceiptPreviewProps {
   data: ReceiptData;
@@ -19,6 +21,7 @@ interface ReceiptPreviewProps {
 }
 
 export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, rawString }) => {
+  const [viewMode, setViewMode] = useState<'3d' | '2d'>('3d');
   const [isPrinting, setIsPrinting] = useState(false);
   const [printedLineCount, setPrintedLineCount] = useState<number>(data.lines.length);
   const [speed, setSpeed] = useState<number>(1); // 0.5x, 1x, 2x, 100x (Instant)
@@ -216,13 +219,39 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
   return (
     <div className="flex flex-col items-center w-full h-full bg-neutral-100 dark:bg-neutral-900 transition-colors duration-300 overflow-hidden relative">
       {/* Sunmi Cloud Printer Head Header Control Bar */}
-      <div className="w-full bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700 px-6 py-3 flex items-center justify-between shadow-sm z-40 relative">
+      <div className="w-full bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700 px-4 sm:px-6 py-2.5 flex items-center justify-between shadow-sm z-40 relative">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <span className={`w-2.5 h-2.5 rounded-full ${isPrinting ? 'bg-amber-500 animate-ping' : 'bg-emerald-500'}`} />
-            <span className="text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider">
+            <span className="text-xs font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wider hidden sm:inline">
               {isPrinting ? 'Printing Thermal Feed...' : 'Sunmi Cloud Online'}
             </span>
+          </div>
+
+          {/* 3D vs 2D View Switcher */}
+          <div className="flex items-center bg-neutral-100 dark:bg-neutral-900/90 p-1 rounded-xl border border-neutral-200 dark:border-neutral-700/80 shadow-xs">
+            <button
+              onClick={() => setViewMode('3d')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                viewMode === '3d'
+                  ? 'bg-amber-500 text-white shadow-xs'
+                  : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+              }`}
+            >
+              <Box size={14} />
+              <span>3D Sunmi Printer</span>
+            </button>
+            <button
+              onClick={() => setViewMode('2d')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                viewMode === '2d'
+                  ? 'bg-amber-500 text-white shadow-xs'
+                  : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+              }`}
+            >
+              <FileText size={14} />
+              <span>2D Flat View</span>
+            </button>
           </div>
         </div>
 
@@ -395,195 +424,210 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
         )}
       </AnimatePresence>
 
-      {/* Main Thermal Printer Enclosure Stage */}
-      <div
-        ref={containerRef}
-        id="receipt-container"
-        data-receipt-width={width}
-        className="flex-1 w-full px-4 sm:px-6 md:px-8 pb-8 pt-2 sm:pt-4 overflow-y-auto flex flex-col items-center justify-start relative"
-      >
-        {/* Paper Roll Bay (Upper Housing) - Attached directly to top of thermal paper */}
-        <div className={`relative z-20 w-full ${containerWidth} bg-neutral-900 dark:bg-neutral-950 rounded-t-2xl p-3.5 sm:p-4 border border-neutral-700 shadow-xl flex flex-col items-center shrink-0`}>
-          {/* Transparent Acrylic Top Bay Window */}
-          <div className="w-full bg-neutral-800/80 rounded-xl p-2.5 sm:p-3 border border-neutral-700/60 flex items-center justify-between relative">
-            <div className="flex items-center gap-3 min-w-0">
-              {/* Animated Rotating Paper Roll */}
-              <div className="relative w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center shrink-0">
-                {/* Roll outer paper body */}
-                <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full border-3 sm:border-4 border-amber-500/80 bg-white shadow-inner flex items-center justify-center relative overflow-hidden ${isPrinting ? 'animate-roll-spin' : ''}`}>
-                  {/* Concentric paper layers texture */}
-                  <div className="absolute inset-1 rounded-full border-2 border-neutral-200 border-dashed" />
-                  <div className="absolute inset-2 rounded-full border border-neutral-300" />
-                  {/* Paper roll core spool */}
-                  <div className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full bg-neutral-800 border border-neutral-600 z-10" />
-                  {/* Paper feeding indicator strip */}
-                  <div className="absolute top-0 inset-x-0 h-1 bg-amber-400" />
+      {/* Main Preview Stage Container */}
+      {viewMode === '3d' ? (
+        <div className="flex-1 w-full h-full relative overflow-hidden">
+          <Sunmi3DPrinter
+            data={data}
+            width={width}
+            printedLineCount={isInstantMode ? data.lines.length : printedLineCount}
+            isPrinting={isPrinting}
+            activeCutAnimation={activeCutAnimation}
+            onTriggerCut={triggerCutEffect}
+            onStartPrint={handleStartPrintAnimation}
+          />
+        </div>
+      ) : (
+        /* 2D Flat Thermal Printer Enclosure Stage */
+        <div
+          ref={containerRef}
+          id="receipt-container"
+          data-receipt-width={width}
+          className="flex-1 w-full px-4 sm:px-6 md:px-8 pb-8 pt-2 sm:pt-4 overflow-y-auto flex flex-col items-center justify-start relative"
+        >
+          {/* Paper Roll Bay (Upper Housing) - Attached directly to top of thermal paper */}
+          <div className={`relative z-20 w-full ${containerWidth} bg-neutral-900 dark:bg-neutral-950 rounded-t-2xl p-3.5 sm:p-4 border border-neutral-700 shadow-xl flex flex-col items-center shrink-0`}>
+            {/* Transparent Acrylic Top Bay Window */}
+            <div className="w-full bg-neutral-800/80 rounded-xl p-2.5 sm:p-3 border border-neutral-700/60 flex items-center justify-between relative">
+              <div className="flex items-center gap-3 min-w-0">
+                {/* Animated Rotating Paper Roll */}
+                <div className="relative w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center shrink-0">
+                  {/* Roll outer paper body */}
+                  <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full border-3 sm:border-4 border-amber-500/80 bg-white shadow-inner flex items-center justify-center relative overflow-hidden ${isPrinting ? 'animate-roll-spin' : ''}`}>
+                    {/* Concentric paper layers texture */}
+                    <div className="absolute inset-1 rounded-full border-2 border-neutral-200 border-dashed" />
+                    <div className="absolute inset-2 rounded-full border border-neutral-300" />
+                    {/* Paper roll core spool */}
+                    <div className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full bg-neutral-800 border border-neutral-600 z-10" />
+                    {/* Paper feeding indicator strip */}
+                    <div className="absolute top-0 inset-x-0 h-1 bg-amber-400" />
+                  </div>
+                </div>
+
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold text-white tracking-wide uppercase truncate">
+                      Thermal Paper Roll ({width})
+                    </span>
+                    {isPrinting && (
+                      <span className="px-1.5 py-0.5 rounded bg-amber-500 text-black text-[9px] font-extrabold uppercase animate-pulse shrink-0">
+                        FEEDING
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-neutral-400 truncate">
+                    Sunmi High-Speed Japanese Thermal Head
+                  </p>
                 </div>
               </div>
 
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-bold text-white tracking-wide uppercase truncate">
-                    Thermal Paper Roll ({width})
-                  </span>
-                  {isPrinting && (
-                    <span className="px-1.5 py-0.5 rounded bg-amber-500 text-black text-[9px] font-extrabold uppercase animate-pulse shrink-0">
-                      FEEDING
-                    </span>
-                  )}
-                </div>
-                <p className="text-[10px] text-neutral-400 truncate">
-                  Sunmi High-Speed Japanese Thermal Head
-                </p>
+              <div className="flex items-center gap-1.5 shrink-0 pl-2">
+                <span className={`w-2 h-2 rounded-full ${isPrinting ? 'bg-amber-400 animate-ping' : 'bg-emerald-400'}`} />
+                <span className="text-[10px] font-mono text-neutral-400 uppercase font-bold">
+                  {isPrinting ? 'FEEDING' : 'READY'}
+                </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 shrink-0 pl-2">
-              <span className={`w-2 h-2 rounded-full ${isPrinting ? 'bg-amber-400 animate-ping' : 'bg-emerald-400'}`} />
-              <span className="text-[10px] font-mono text-neutral-400 uppercase font-bold">
-                {isPrinting ? 'FEEDING' : 'READY'}
-              </span>
+            {/* Mechanical Guillotine Cutter Head Assembly Slot */}
+            <div className="w-full mt-3 bg-neutral-900 rounded-lg p-2 border-t-2 border-neutral-700 flex items-center justify-between relative">
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-mono font-bold tracking-widest text-neutral-400 uppercase">
+                  AUTOMATIC CUTTER SLOT
+                </span>
+              </div>
+
+              {/* Guillotine Cutter Blade Animation Overlay */}
+              <AnimatePresence>
+                {activeCutAnimation && (
+                  <div className="absolute inset-0 z-40 overflow-hidden rounded-lg flex items-center justify-between pointer-events-none">
+                    {/* Left Guillotine Blade */}
+                    <div className="w-1/2 h-full bg-gradient-to-r from-neutral-300 via-neutral-100 to-amber-300 border-r-2 border-amber-400 shadow-2xl animate-blade-left flex items-center justify-end pr-2">
+                      <Scissors size={14} className="text-black animate-spin" />
+                    </div>
+                    {/* Right Guillotine Blade */}
+                    <div className="w-1/2 h-full bg-gradient-to-l from-neutral-300 via-neutral-100 to-amber-300 border-l-2 border-amber-400 shadow-2xl animate-blade-right flex items-center justify-start pl-2">
+                      <Scissors size={14} className="text-black animate-spin" />
+                    </div>
+                    {/* Laser Cut Spark Line */}
+                    <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-0.5 bg-amber-400 animate-pulse shadow-[0_0_12px_#f59e0b]" />
+                  </div>
+                )}
+              </AnimatePresence>
+
+              <div className="flex gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-amber-500/80" />
+                <div className="w-2 h-2 rounded-full bg-neutral-700" />
+              </div>
             </div>
           </div>
 
-          {/* Mechanical Guillotine Cutter Head Assembly Slot */}
-          <div className="w-full mt-3 bg-neutral-900 rounded-lg p-2 border-t-2 border-neutral-700 flex items-center justify-between relative">
-            <div className="flex items-center gap-2">
-              <span className="text-[9px] font-mono font-bold tracking-widest text-neutral-400 uppercase">
-                AUTOMATIC CUTTER SLOT
-              </span>
-            </div>
+          {/* Paper Container Emerging From Slot */}
+          <motion.div
+            layout
+            className={`bg-white dark:bg-neutral-800 text-black dark:text-neutral-100 shadow-2xl w-full ${containerWidth} min-h-[480px] rounded-b-md flex flex-col relative transition-all duration-300 border-x border-b border-neutral-200 dark:border-neutral-700 ${
+              activeCutAnimation ? 'translate-y-1 transition-transform' : ''
+            }`}
+            id="receipt-paper"
+          >
+            {/* Subtle Scanline Thermal Paper Effect */}
+            <div className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.06] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 bg-[length:100%_2px,3px_100%]" />
 
-            {/* Guillotine Cutter Blade Animation Overlay */}
-            <AnimatePresence>
-              {activeCutAnimation && (
-                <div className="absolute inset-0 z-40 overflow-hidden rounded-lg flex items-center justify-between pointer-events-none">
-                  {/* Left Guillotine Blade */}
-                  <div className="w-1/2 h-full bg-gradient-to-r from-neutral-300 via-neutral-100 to-amber-300 border-r-2 border-amber-400 shadow-2xl animate-blade-left flex items-center justify-end pr-2">
-                    <Scissors size={14} className="text-black animate-spin" />
-                  </div>
-                  {/* Right Guillotine Blade */}
-                  <div className="w-1/2 h-full bg-gradient-to-l from-neutral-300 via-neutral-100 to-amber-300 border-l-2 border-amber-400 shadow-2xl animate-blade-right flex items-center justify-start pl-2">
-                    <Scissors size={14} className="text-black animate-spin" />
-                  </div>
-                  {/* Laser Cut Spark Line */}
-                  <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-0.5 bg-amber-400 animate-pulse shadow-[0_0_12px_#f59e0b]" />
+            {/* Receipt Lines Content */}
+            <div className={`flex-1 font-mono text-[11.5px] leading-[1.35] relative overflow-x-hidden ${width === '58mm' ? 'p-3.5' : 'px-4.5 py-6'}`}>
+              {visibleLines.length === 0 && (
+                <div className="h-full flex flex-col items-center justify-center py-20 text-neutral-400 dark:text-neutral-600 text-center font-sans">
+                  <Sparkles size={32} className="mb-2 opacity-50" />
+                  <p className="text-xs font-semibold">Feed Paper or Click Print to Preview</p>
                 </div>
               )}
-            </AnimatePresence>
 
-            <div className="flex gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-amber-500/80" />
-              <div className="w-2 h-2 rounded-full bg-neutral-700" />
-            </div>
-          </div>
-        </div>
+              {visibleLines.map((line, idx) => {
+                const alignmentClass =
+                  line.align === Alignment.CENTER ? 'text-center' :
+                  line.align === Alignment.RIGHT ? 'text-right' : 'text-left';
 
-        {/* Paper Container Emerging From Slot */}
-        <motion.div
-          layout
-          className={`bg-white dark:bg-neutral-800 text-black dark:text-neutral-100 shadow-2xl w-full ${containerWidth} min-h-[480px] rounded-b-md flex flex-col relative transition-all duration-300 border-x border-b border-neutral-200 dark:border-neutral-700 ${
-            activeCutAnimation ? 'translate-y-1 transition-transform' : ''
-          }`}
-          id="receipt-paper"
-        >
-          {/* Subtle Scanline Thermal Paper Effect */}
-          <div className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.06] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 bg-[length:100%_2px,3px_100%]" />
+                const isLatestLine = !isInstantMode && idx === visibleLines.length - 1 && isPrinting;
 
-          {/* Receipt Lines Content */}
-          <div className={`flex-1 font-mono text-[11.5px] leading-[1.35] relative overflow-x-hidden ${width === '58mm' ? 'p-3.5' : 'px-4.5 py-6'}`}>
-            {visibleLines.length === 0 && (
-              <div className="h-full flex flex-col items-center justify-center py-20 text-neutral-400 dark:text-neutral-600 text-center font-sans">
-                <Sparkles size={32} className="mb-2 opacity-50" />
-                <p className="text-xs font-semibold">Feed Paper or Click Print to Preview</p>
-              </div>
-            )}
+                return (
+                  <div key={line.id} className="relative group/line my-[1px] w-full max-w-full">
+                    {/* Thermal Line Sweep Highlight during active animation */}
+                    {isLatestLine && (
+                      <motion.div
+                        initial={{ opacity: 0.8, x: -10 }}
+                        animate={{ opacity: 0, x: 20 }}
+                        transition={{ duration: 0.2 }}
+                        className="absolute inset-0 bg-amber-400/20 pointer-events-none rounded"
+                      />
+                    )}
 
-            {visibleLines.map((line, idx) => {
-              const alignmentClass =
-                line.align === Alignment.CENTER ? 'text-center' :
-                line.align === Alignment.RIGHT ? 'text-right' : 'text-left';
+                    <div className={`w-full max-w-full overflow-hidden ${alignmentClass} min-h-[1.25em] whitespace-pre-wrap break-all font-mono`}>
+                      {line.spans.map((span, sIdx) => {
+                        const spanStyle = span.style;
+                        const hasScaleX = spanStyle.scaleX > 1;
+                        const hasScaleY = spanStyle.scaleY > 1;
 
-              const isLatestLine = !isInstantMode && idx === visibleLines.length - 1 && isPrinting;
+                        const fontSize = hasScaleY ? `${Math.min(20, 11.5 * spanStyle.scaleY)}px` : '11.5px';
+                        const letterSpacing = hasScaleX ? '0.08em' : '0px';
 
-              return (
-                <div key={line.id} className="relative group/line my-[1px] w-full max-w-full">
-                  {/* Thermal Line Sweep Highlight during active animation */}
-                  {isLatestLine && (
-                    <motion.div
-                      initial={{ opacity: 0.8, x: -10 }}
-                      animate={{ opacity: 0, x: 20 }}
-                      transition={{ duration: 0.2 }}
-                      className="absolute inset-0 bg-amber-400/20 pointer-events-none rounded"
-                    />
-                  )}
-
-                  <div className={`w-full max-w-full overflow-hidden ${alignmentClass} min-h-[1.25em] whitespace-pre-wrap break-all font-mono`}>
-                    {line.spans.map((span, sIdx) => {
-                      const spanStyle = span.style;
-                      const hasScaleX = spanStyle.scaleX > 1;
-                      const hasScaleY = spanStyle.scaleY > 1;
-
-                      const fontSize = hasScaleY ? `${Math.min(20, 11.5 * spanStyle.scaleY)}px` : '11.5px';
-                      const letterSpacing = hasScaleX ? '0.08em' : '0px';
-
-                      return (
-                        <span
-                          key={sIdx}
-                          className={`
-                            inline whitespace-pre-wrap break-all transition-colors duration-150
-                            ${spanStyle.bold ? 'font-bold' : 'font-normal'}
-                            ${spanStyle.underline ? 'underline decoration-1 underline-offset-2' : ''}
-                            ${
-                              spanStyle.reverse
-                                ? 'bg-black text-white dark:bg-white dark:text-black px-1 mx-[0.5px] font-bold rounded-xs'
-                                : spanStyle.color === 'red'
-                                ? 'text-red-600 dark:text-red-400 font-semibold'
-                                : 'text-neutral-900 dark:text-neutral-100'
-                            }
-                          `}
-                          style={{
-                            fontSize,
-                            letterSpacing,
-                            fontWeight: spanStyle.bold || hasScaleX || hasScaleY ? 700 : 400,
-                          }}
-                        >
-                          {span.text}
-                        </span>
-                      );
-                    })}
-                  </div>
-
-                  {/* Cut Line Visual Indicator */}
-                  {line.hasCutHere && (
-                    <div className="my-4 relative flex items-center justify-center">
-                      <div className="w-full border-t-2 border-dashed border-red-400 dark:border-red-500/80" />
-                      <span className="absolute bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-300 text-[9px] font-bold px-2 py-0.5 rounded-full border border-red-200 dark:border-red-800 flex items-center gap-1 shadow-xs">
-                        <Scissors size={10} />
-                        PAPER CUT COMMAND (GS V)
-                      </span>
+                        return (
+                          <span
+                            key={sIdx}
+                            className={`
+                              inline whitespace-pre-wrap break-all transition-colors duration-150
+                              ${spanStyle.bold ? 'font-bold' : 'font-normal'}
+                              ${spanStyle.underline ? 'underline decoration-1 underline-offset-2' : ''}
+                              ${
+                                spanStyle.reverse
+                                  ? 'bg-black text-white dark:bg-white dark:text-black px-1 mx-[0.5px] font-bold rounded-xs'
+                                  : spanStyle.color === 'red'
+                                  ? 'text-red-600 dark:text-red-400 font-semibold'
+                                  : 'text-neutral-900 dark:text-neutral-100'
+                              }
+                            `}
+                            style={{
+                              fontSize,
+                              letterSpacing,
+                              fontWeight: spanStyle.bold || hasScaleX || hasScaleY ? 700 : 400,
+                            }}
+                          >
+                            {span.text}
+                          </span>
+                        );
+                      })}
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
 
-          {/* Paper Cut Bottom Edge */}
-          <div className="w-full relative h-6 mt-4 flex flex-col items-center justify-end overflow-hidden">
-            {data.hasCut || activeCutAnimation ? (
-              <div className="w-full border-t border-dashed border-neutral-300 dark:border-neutral-600 relative">
-                <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-neutral-100 dark:bg-neutral-800 px-3 py-0.5 text-[9px] text-neutral-400 dark:text-neutral-500 font-sans uppercase tracking-widest border border-neutral-200 dark:border-neutral-700 rounded-full flex items-center gap-1">
-                  <CheckCircle2 size={10} className="text-emerald-500" />
-                  Cut Paper Edge
+                    {/* Cut Line Visual Indicator */}
+                    {line.hasCutHere && (
+                      <div className="my-4 relative flex items-center justify-center">
+                        <div className="w-full border-t-2 border-dashed border-red-400 dark:border-red-500/80" />
+                        <span className="absolute bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-300 text-[9px] font-bold px-2 py-0.5 rounded-full border border-red-200 dark:border-red-800 flex items-center gap-1 shadow-xs">
+                          <Scissors size={10} />
+                          PAPER CUT COMMAND (GS V)
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Paper Cut Bottom Edge */}
+            <div className="w-full relative h-6 mt-4 flex flex-col items-center justify-end overflow-hidden">
+              {data.hasCut || activeCutAnimation ? (
+                <div className="w-full border-t border-dashed border-neutral-300 dark:border-neutral-600 relative">
+                  <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-neutral-100 dark:bg-neutral-800 px-3 py-0.5 text-[9px] text-neutral-400 dark:text-neutral-500 font-sans uppercase tracking-widest border border-neutral-200 dark:border-neutral-700 rounded-full flex items-center gap-1">
+                    <CheckCircle2 size={10} className="text-emerald-500" />
+                    Cut Paper Edge
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="w-full h-6 bg-gradient-to-t from-neutral-200/50 to-transparent dark:from-neutral-900/50" />
-            )}
-          </div>
-        </motion.div>
-      </div>
+              ) : (
+                <div className="w-full h-6 bg-gradient-to-t from-neutral-200/50 to-transparent dark:from-neutral-900/50" />
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* REST API & Automation Modal */}
       <ApiModal

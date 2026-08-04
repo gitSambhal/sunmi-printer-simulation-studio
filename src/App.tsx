@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Sun, Moon, Printer, Terminal, ShieldCheck, Download, Wifi, WifiOff, Globe, ExternalLink, Smartphone } from 'lucide-react';
+import { Sun, Moon, Printer, Terminal, ShieldCheck, Download, Wifi, WifiOff, Globe, ExternalLink, Smartphone, PanelLeftClose, PanelLeftOpen, GripVertical } from 'lucide-react';
 import { RawInput } from './components/RawInput';
 import { ReceiptPreview } from './components/ReceiptPreview';
 import { parseEscPos, hexToBytes, textToBytes, escapedStringToBytes } from './lib/escpos';
@@ -17,6 +17,61 @@ export default function App() {
   const [inputMode, setInputMode] = useState<'text' | 'raw'>('raw');
   const [width, setWidth] = useState<'58mm' | '80mm'>('80mm');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  const [sidebarWidth, setSidebarWidth] = useState<number>(360);
+  const [sidebarHeight, setSidebarHeight] = useState<number>(240);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [mobileView, setMobileView] = useState<'printer' | 'editor' | 'split'>('printer');
+  const [isDesktop, setIsDesktop] = useState<boolean>(typeof window !== 'undefined' ? window.innerWidth >= 768 : true);
+
+  // Monitor Window Resize for Desktop/Tablet vs Mobile Layout
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 768);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Handle Draggable Sidebar Resizing (Mouse & Touch)
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      const clientX = 'touches' in e ? e.touches[0]?.clientX : (e as MouseEvent).clientX;
+      const clientY = 'touches' in e ? e.touches[0]?.clientY : (e as MouseEvent).clientY;
+
+      if (isDesktop && clientX !== undefined) {
+        // Clamp desktop sidebar width between 240px and 60% of viewport width
+        const maxW = Math.max(300, Math.min(window.innerWidth - 300, 650));
+        const newWidth = Math.min(Math.max(clientX, 240), maxW);
+        setSidebarWidth(newWidth);
+      } else if (!isDesktop && clientY !== undefined) {
+        // Clamp mobile sidebar height between 120px and 50% of viewport height
+        const newHeight = Math.min(Math.max(clientY - 55, 120), Math.min(window.innerHeight - 200, 380));
+        setSidebarHeight(newHeight);
+      }
+    };
+
+    const handleEnd = () => {
+      setIsDragging(false);
+    };
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd);
+    window.addEventListener('touchmove', handleMove, { passive: false });
+    window.addEventListener('touchend', handleEnd);
+    window.addEventListener('touchcancel', handleEnd);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleEnd);
+      window.removeEventListener('touchmove', handleMove);
+      window.removeEventListener('touchend', handleEnd);
+      window.removeEventListener('touchcancel', handleEnd);
+    };
+  }, [isDragging, isDesktop]);
 
   // Online / Offline State
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
@@ -149,11 +204,25 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Sidebar Toggle Button */}
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className={`px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 text-xs font-semibold ${
+              isSidebarOpen
+                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+            }`}
+            title={isSidebarOpen ? 'Collapse Editor Sidebar' : 'Expand Editor Sidebar'}
+          >
+            {isSidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
+            <span className="hidden sm:inline">{isSidebarOpen ? 'Hide Editor' : 'Show Editor'}</span>
+          </button>
+
           {/* PWA Install Button */}
           {deferredPrompt && (
             <button
               onClick={handleInstallClick}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold text-xs rounded-lg shadow-sm transition-all animate-bounce"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold text-xs rounded-lg shadow-xs transition-all animate-bounce"
               title="Install as App on Desktop or Mobile"
             >
               <Smartphone size={14} />
@@ -196,10 +265,31 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Grid View */}
-      <main className="flex-1 flex overflow-hidden">
-        {/* Left Half: Raw Editor */}
-        <div className="w-[45%] h-full">
+      {/* Drag Overlay Backdrop during resizing */}
+      {isDragging && (
+        <div
+          className="fixed inset-0 z-50 select-none"
+          style={{ cursor: isDesktop ? 'col-resize' : 'row-resize' }}
+        />
+      )}
+
+      {/* Main App Layout */}
+      <main className={`flex-1 flex overflow-hidden relative flex-col md:flex-row ${isDragging ? 'select-none' : ''}`}>
+        {/* Editor Sidebar */}
+        <aside
+          style={
+            isSidebarOpen
+              ? isDesktop
+                ? { width: `${sidebarWidth}px`, height: '100%' }
+                : { width: '100%', height: `${sidebarHeight}px` }
+              : isDesktop
+              ? { width: 0, height: '100%' }
+              : { width: '100%', height: 0 }
+          }
+          className={`flex flex-col bg-white dark:bg-neutral-900 border-b md:border-b-0 md:border-r border-neutral-200 dark:border-neutral-800 shrink-0 transition-[opacity] duration-150 ${
+            isSidebarOpen ? 'opacity-100 overflow-hidden' : 'opacity-0 overflow-hidden border-0 pointer-events-none'
+          }`}
+        >
           <RawInput
             value={inputValue}
             onChange={setInputValue}
@@ -208,12 +298,40 @@ export default function App() {
             onClear={() => setInputValue('')}
             onLoadPreset={handleLoadPreset}
           />
-        </div>
+        </aside>
 
-        {/* Right Half: Live Animated Thermal Printer Stage */}
-        <div className="flex-1 h-full">
+        {/* Draggable Resizer Bar */}
+        {isSidebarOpen && (
+          <div
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setIsDragging(true);
+            }}
+            onTouchStart={() => setIsDragging(true)}
+            className={`z-20 flex items-center justify-center transition-colors group select-none shrink-0 ${
+              isDesktop
+                ? 'w-2 hover:w-2.5 cursor-col-resize h-full border-r border-neutral-200 dark:border-neutral-800'
+                : 'h-2.5 w-full cursor-row-resize border-b border-neutral-200 dark:border-neutral-800'
+            } ${
+              isDragging
+                ? 'bg-amber-500'
+                : 'bg-neutral-200 dark:bg-neutral-800 hover:bg-amber-500/80 dark:hover:bg-amber-500/80'
+            }`}
+            title={isDesktop ? "Drag horizontally to resize editor width" : "Drag vertically to resize editor height"}
+          >
+            <GripVertical
+              size={12}
+              className={`text-neutral-500 group-hover:text-white transition-all ${
+                isDesktop ? 'rotate-0' : 'rotate-90'
+              } ${isDragging ? 'opacity-100 text-white' : 'opacity-50 group-hover:opacity-100'}`}
+            />
+          </div>
+        )}
+
+        {/* Main Printer Visualizer Stage */}
+        <section className="flex-1 h-full min-w-0 min-h-0 bg-neutral-100 dark:bg-neutral-950 relative flex flex-col overflow-hidden">
           <ReceiptPreview data={receiptData} width={width} rawString={inputValue} />
-        </div>
+        </section>
       </main>
 
       {/* Footer Info Bar */}

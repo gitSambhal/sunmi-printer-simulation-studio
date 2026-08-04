@@ -221,29 +221,6 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
               {isPrinting ? 'Printing Thermal Feed...' : 'Sunmi Cloud Online'}
             </span>
           </div>
-
-          <span className="text-neutral-300 dark:text-neutral-600">|</span>
-
-          {/* Special Command Status Badges */}
-          <div className="flex items-center gap-1.5 text-[10px]">
-            {data.stats.redSpanCount > 0 && (
-              <span className="px-2 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 font-semibold flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                Red Print
-              </span>
-            )}
-            {data.hasCut && (
-              <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 font-semibold flex items-center gap-1">
-                <Scissors size={10} />
-                Paper Cut
-              </span>
-            )}
-            {data.stats.reverseSpanCount > 0 && (
-              <span className="px-2 py-0.5 rounded bg-neutral-800 text-white dark:bg-neutral-200 dark:text-neutral-900 font-semibold">
-                Reverse Text
-              </span>
-            )}
-          </div>
         </div>
 
         {/* Action Controls Toolbar */}
@@ -420,47 +397,47 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
         ref={containerRef}
         id="receipt-container"
         data-receipt-width={width}
-        className="flex-1 w-full p-6 md:p-8 overflow-y-auto flex flex-col items-center justify-start relative"
+        className="flex-1 w-full p-4 sm:p-6 md:p-8 pt-6 sm:pt-8 md:pt-10 overflow-y-auto flex flex-col items-center justify-start relative shrink-0"
       >
         {/* Paper Roll Bay (Upper Housing) */}
-        <div className={`w-full ${containerWidth} bg-neutral-900/90 dark:bg-neutral-950/90 rounded-t-2xl p-4 border border-neutral-700 shadow-xl relative z-20 backdrop-blur flex flex-col items-center overflow-hidden`}>
+        <div className={`w-full ${containerWidth} bg-neutral-900/95 dark:bg-neutral-950/95 rounded-t-2xl p-3.5 sm:p-4 border border-neutral-700 shadow-xl relative z-20 backdrop-blur flex flex-col items-center shrink-0`}>
           {/* Transparent Acrylic Top Bay Window */}
-          <div className="w-full bg-neutral-800/80 rounded-xl p-3 border border-neutral-700/60 flex items-center justify-between relative overflow-hidden">
-            <div className="flex items-center gap-3">
+          <div className="w-full bg-neutral-800/80 rounded-xl p-2.5 sm:p-3 border border-neutral-700/60 flex items-center justify-between relative">
+            <div className="flex items-center gap-3 min-w-0">
               {/* Animated Rotating Paper Roll */}
-              <div className="relative w-12 h-12 flex items-center justify-center">
+              <div className="relative w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center shrink-0">
                 {/* Roll outer paper body */}
-                <div className={`w-12 h-12 rounded-full border-4 border-amber-500/80 bg-white shadow-inner flex items-center justify-center relative overflow-hidden ${isPrinting ? 'animate-roll-spin' : ''}`}>
+                <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full border-3 sm:border-4 border-amber-500/80 bg-white shadow-inner flex items-center justify-center relative overflow-hidden ${isPrinting ? 'animate-roll-spin' : ''}`}>
                   {/* Concentric paper layers texture */}
                   <div className="absolute inset-1 rounded-full border-2 border-neutral-200 border-dashed" />
-                  <div className="absolute inset-2.5 rounded-full border border-neutral-300" />
+                  <div className="absolute inset-2 rounded-full border border-neutral-300" />
                   {/* Paper roll core spool */}
-                  <div className="w-3.5 h-3.5 rounded-full bg-neutral-800 border border-neutral-600 z-10" />
+                  <div className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full bg-neutral-800 border border-neutral-600 z-10" />
                   {/* Paper feeding indicator strip */}
                   <div className="absolute top-0 inset-x-0 h-1 bg-amber-400" />
                 </div>
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-bold text-white tracking-wide uppercase">
+                  <span className="text-[11px] font-bold text-white tracking-wide uppercase truncate">
                     Thermal Paper Roll ({width})
                   </span>
                   {isPrinting && (
-                    <span className="px-1.5 py-0.5 rounded bg-amber-500 text-black text-[9px] font-extrabold uppercase animate-pulse">
+                    <span className="px-1.5 py-0.5 rounded bg-amber-500 text-black text-[9px] font-extrabold uppercase animate-pulse shrink-0">
                       FEEDING
                     </span>
                   )}
                 </div>
-                <p className="text-[10px] text-neutral-400">
+                <p className="text-[10px] text-neutral-400 truncate">
                   Sunmi High-Speed Japanese Thermal Head
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 shrink-0 pl-2">
               <span className={`w-2 h-2 rounded-full ${isPrinting ? 'bg-amber-400 animate-ping' : 'bg-emerald-400'}`} />
-              <span className="text-[10px] font-mono text-neutral-400 uppercase">
+              <span className="text-[10px] font-mono text-neutral-400 uppercase font-bold">
                 {isPrinting ? 'FEEDING' : 'READY'}
               </span>
             </div>

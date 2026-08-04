@@ -1,6 +1,5 @@
 import express from 'express';
 import path from 'path';
-import { createServer as createViteServer } from 'vite';
 import { parseEscPos, escapedStringToBytes, textToBytes, hexToBytes } from './src/lib/escpos';
 import { renderReceiptToHtml, renderReceiptToSvg } from './src/lib/renderHtml';
 
@@ -120,6 +119,7 @@ async function startServer() {
 
   // Vite development or production static serving
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',

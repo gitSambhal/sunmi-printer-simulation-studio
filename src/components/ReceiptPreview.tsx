@@ -397,10 +397,10 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
         ref={containerRef}
         id="receipt-container"
         data-receipt-width={width}
-        className="flex-1 w-full p-4 sm:p-6 md:p-8 pt-6 sm:pt-8 md:pt-10 overflow-y-auto flex flex-col items-center justify-start relative shrink-0"
+        className="flex-1 w-full px-4 sm:px-6 md:px-8 pb-8 pt-2 sm:pt-4 overflow-y-auto flex flex-col items-center justify-start relative"
       >
-        {/* Paper Roll Bay (Upper Housing) */}
-        <div className={`w-full ${containerWidth} bg-neutral-900/95 dark:bg-neutral-950/95 rounded-t-2xl p-3.5 sm:p-4 border border-neutral-700 shadow-xl relative z-20 backdrop-blur flex flex-col items-center shrink-0`}>
+        {/* Paper Roll Bay (Upper Housing) - Sticky directly below title bar */}
+        <div className={`sticky top-0 z-30 w-full ${containerWidth} bg-neutral-900/95 dark:bg-neutral-950/95 rounded-t-2xl p-3.5 sm:p-4 border border-neutral-700 shadow-xl backdrop-blur flex flex-col items-center shrink-0`}>
           {/* Transparent Acrylic Top Bay Window */}
           <div className="w-full bg-neutral-800/80 rounded-xl p-2.5 sm:p-3 border border-neutral-700/60 flex items-center justify-between relative">
             <div className="flex items-center gap-3 min-w-0">

@@ -141,7 +141,6 @@ async function handleApiRequest(request: Request): Promise<Response> {
           svg,
           stats: receiptData.stats,
           controlEvents: receiptData.controlEvents,
-          lines: receiptData.lines,
           engine: 'Service Worker Client-Side API',
         }),
         {

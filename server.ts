@@ -7,12 +7,13 @@ export const app = express();
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.text({ limit: '10mb', type: ['text/*', 'plain/*', 'application/x-www-form-urlencoded'] }));
 
 // CORS headers for automation integration
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
   }
@@ -34,23 +35,46 @@ const parsePayloadToReceipt = (rawInput: string, mode: string = 'raw') => {
 
 // API Health Check
 const handleHealth = (req: any, res: any) => {
-  res.json({ status: 'ok', service: 'ESC/POS Receipt Generator API', version: '1.0.0' });
+  res.json({
+    status: 'ok',
+    service: 'ESC/POS Receipt Generator API',
+    version: '2.0.0',
+    endpoints: ['/api/health', '/api/render-receipt', '/api/render-image']
+  });
 };
-app.get('/api/health', handleHealth);
-app.get('/health', handleHealth);
 
-// GET or POST /api/render-receipt -> Returns JSON with HTML, SVG, stats, and parsed structure
+// GET or POST /api/render-receipt -> Returns JSON with HTML, SVG, stats, and controlEvents (lines removed)
 const handleRenderReceipt = (req: any, res: any) => {
   try {
-    const raw = req.method === 'POST' ? req.body?.raw : req.query?.raw;
-    const mode = (req.method === 'POST' ? req.body?.mode : req.query?.mode) || 'raw';
-    const width = (req.method === 'POST' ? req.body?.width : req.query?.width) || '80mm';
-    const theme = (req.method === 'POST' ? req.body?.theme : req.query?.theme) || 'light';
+    let rawString = '';
+    let mode = 'raw';
+    let width = '80mm';
+    let theme = 'light';
 
-    const rawString = typeof raw === 'string' ? raw : (req.body?.text || req.query?.text || '');
+    if (req.method === 'POST') {
+      if (typeof req.body === 'string') {
+        try {
+          const parsedJson = JSON.parse(req.body);
+          rawString = parsedJson.raw ?? parsedJson.text ?? req.body;
+          mode = parsedJson.mode ?? mode;
+          width = parsedJson.width ?? width;
+          theme = parsedJson.theme ?? theme;
+        } catch {
+          rawString = req.body;
+        }
+      } else if (req.body && typeof req.body === 'object') {
+        rawString = req.body.raw ?? req.body.text ?? '';
+        mode = req.body.mode ?? mode;
+        width = req.body.width ?? width;
+        theme = req.body.theme ?? theme;
+      }
+    }
 
-    if (!rawString && req.method === 'POST') {
-      return res.status(400).json({ error: 'Field "raw" is required in request body' });
+    if (!rawString) {
+      rawString = (req.query?.raw as string) || (req.query?.text as string) || '';
+      mode = (req.query?.mode as string) || mode;
+      width = (req.query?.width as string) || width;
+      theme = (req.query?.theme as string) || theme;
     }
 
     const receiptData = parsePayloadToReceipt(rawString, mode);
@@ -66,7 +90,6 @@ const handleRenderReceipt = (req: any, res: any) => {
       svg,
       stats: receiptData.stats,
       controlEvents: receiptData.controlEvents,
-      lines: receiptData.lines,
     });
   } catch (err: any) {
     console.error('Error rendering receipt API:', err);
@@ -74,22 +97,41 @@ const handleRenderReceipt = (req: any, res: any) => {
   }
 };
 
-app.get('/api/render-receipt', handleRenderReceipt);
-app.post('/api/render-receipt', handleRenderReceipt);
-app.get('/render-receipt', handleRenderReceipt);
-app.post('/render-receipt', handleRenderReceipt);
-
 // GET or POST /api/render-image -> Returns direct image/svg+xml or JSON image representation
 const handleRenderImage = (req: any, res: any) => {
   try {
-    const raw = req.method === 'POST' ? req.body?.raw : req.query?.raw;
-    const mode = req.method === 'POST' ? req.body?.mode : req.query?.mode;
-    const width = req.method === 'POST' ? req.body?.width : req.query?.width;
-    const format = (req.method === 'POST' ? req.body?.format : req.query?.format) || 'svg';
+    let rawString = '';
+    let mode = 'raw';
+    let width = '80mm';
+    let format = 'svg';
 
-    const rawString = typeof raw === 'string' ? raw : (req.body?.text || req.query?.text || '');
+    if (req.method === 'POST') {
+      if (typeof req.body === 'string') {
+        try {
+          const parsedJson = JSON.parse(req.body);
+          rawString = parsedJson.raw ?? parsedJson.text ?? req.body;
+          mode = parsedJson.mode ?? mode;
+          width = parsedJson.width ?? width;
+          format = parsedJson.format ?? format;
+        } catch {
+          rawString = req.body;
+        }
+      } else if (req.body && typeof req.body === 'object') {
+        rawString = req.body.raw ?? req.body.text ?? '';
+        mode = req.body.mode ?? mode;
+        width = req.body.width ?? width;
+        format = req.body.format ?? format;
+      }
+    }
+
+    if (!rawString) {
+      rawString = (req.query?.raw as string) || (req.query?.text as string) || '';
+      mode = (req.query?.mode as string) || mode;
+      width = (req.query?.width as string) || width;
+      format = (req.query?.format as string) || format;
+    }
     
-    const receiptData = parsePayloadToReceipt(rawString, mode || 'raw');
+    const receiptData = parsePayloadToReceipt(rawString, mode);
     const widthVal = width === '58mm' ? '58mm' : '80mm';
     const svg = renderReceiptToSvg(receiptData, { width: widthVal });
 
@@ -109,10 +151,10 @@ const handleRenderImage = (req: any, res: any) => {
   }
 };
 
-app.get('/api/render-image', handleRenderImage);
-app.post('/api/render-image', handleRenderImage);
-app.get('/render-image', handleRenderImage);
-app.post('/render-image', handleRenderImage);
+// Mount multi-path API endpoints for maximum curl and client router compatibility
+app.all(['/api/health', '/health'], handleHealth);
+app.all(['/api/render-receipt', '/render-receipt'], handleRenderReceipt);
+app.all(['/api/render-image', '/render-image'], handleRenderImage);
 
 async function startServer() {
   const PORT = 3000;

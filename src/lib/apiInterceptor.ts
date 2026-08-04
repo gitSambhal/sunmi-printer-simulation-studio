@@ -80,7 +80,6 @@ export function registerApiInterceptor() {
               svg,
               stats: receiptData.stats,
               controlEvents: receiptData.controlEvents,
-              lines: receiptData.lines,
               engine: 'Client-Side Local MSW API Engine',
             }),
             {

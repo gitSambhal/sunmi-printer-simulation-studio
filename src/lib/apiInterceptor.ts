@@ -65,6 +65,10 @@ export function registerApiInterceptor() {
           }
         }
 
+        if (!raw) {
+          raw = "Epoint Store Test\n--------------------------------\nSample ESC/POS Receipt\nItem 1                     $10.00\nItem 2                      $5.00\n--------------------------------\nTotal                      $15.00\nThank You!\n";
+        }
+
         // Route 2: Render Receipt JSON
         if (pathname.includes('/render-receipt')) {
           const receiptData = parsePayloadToReceipt(raw, mode);

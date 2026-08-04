@@ -77,11 +77,16 @@ const handleRenderReceipt = (req: any, res: any) => {
       theme = (req.query?.theme as string) || theme;
     }
 
+    if (!rawString) {
+      rawString = "Epoint Store Test\n--------------------------------\nSample ESC/POS Receipt\nItem 1                     $10.00\nItem 2                      $5.00\n--------------------------------\nTotal                      $15.00\nThank You!\n";
+    }
+
     const receiptData = parsePayloadToReceipt(rawString, mode);
     const widthVal = width === '58mm' ? '58mm' : '80mm';
+    const themeVal: 'light' | 'dark' = theme === 'dark' ? 'dark' : 'light';
 
-    const html = renderReceiptToHtml(receiptData, { width: widthVal, theme });
-    const svg = renderReceiptToSvg(receiptData, { width: widthVal, theme });
+    const html = renderReceiptToHtml(receiptData, { width: widthVal, theme: themeVal });
+    const svg = renderReceiptToSvg(receiptData, { width: widthVal, theme: themeVal });
 
     return res.json({
       success: true,
@@ -130,6 +135,10 @@ const handleRenderImage = (req: any, res: any) => {
       width = (req.query?.width as string) || width;
       format = (req.query?.format as string) || format;
     }
+
+    if (!rawString) {
+      rawString = "Epoint Store Test\n--------------------------------\nSample ESC/POS Receipt\nItem 1                     $10.00\nItem 2                      $5.00\n--------------------------------\nTotal                      $15.00\nThank You!\n";
+    }
     
     const receiptData = parsePayloadToReceipt(rawString, mode);
     const widthVal = width === '58mm' ? '58mm' : '80mm';
@@ -151,10 +160,15 @@ const handleRenderImage = (req: any, res: any) => {
   }
 };
 
-// Mount multi-path API endpoints for maximum curl and client router compatibility
-app.all(['/api/health', '/health'], handleHealth);
-app.all(['/api/render-receipt', '/render-receipt'], handleRenderReceipt);
-app.all(['/api/render-image', '/render-image'], handleRenderImage);
+// Mount multi-path API endpoints for maximum curl, automation, and client router compatibility
+app.use('/api/health', handleHealth);
+app.use('/health', handleHealth);
+
+app.use('/api/render-receipt', handleRenderReceipt);
+app.use('/render-receipt', handleRenderReceipt);
+
+app.use('/api/render-image', handleRenderImage);
+app.use('/render-image', handleRenderImage);
 
 async function startServer() {
   const PORT = 3000;

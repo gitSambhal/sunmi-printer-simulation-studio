@@ -125,6 +125,10 @@ async function handleApiRequest(request: Request): Promise<Response> {
     }
   }
 
+  if (!raw) {
+    raw = "Epoint Store Test\n--------------------------------\nSample ESC/POS Receipt\nItem 1                     $10.00\nItem 2                      $5.00\n--------------------------------\nTotal                      $15.00\nThank You!\n";
+  }
+
   // Route 2: Render Receipt JSON (/api/render-receipt or /render-receipt)
   if (pathname.includes('/render-receipt')) {
     try {

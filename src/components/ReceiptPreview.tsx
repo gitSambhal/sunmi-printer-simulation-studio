@@ -9,6 +9,7 @@ import { toPng, toSvg } from 'html-to-image';
 import { ReceiptData, Alignment } from '../lib/escpos';
 import { printerAudio } from '../lib/audio';
 import { renderReceiptToSvg, renderReceiptToHtml } from '../lib/renderHtml';
+import { copyToClipboard } from '../lib/clipboard';
 import { ApiModal } from './ApiModal';
 
 interface ReceiptPreviewProps {
@@ -112,12 +113,14 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
   };
 
   // Copy Rendered HTML Code
-  const handleCopyHtml = () => {
+  const handleCopyHtml = async () => {
     try {
       const html = renderReceiptToHtml(data, { width });
-      navigator.clipboard.writeText(html);
-      setCopiedHtml(true);
-      setTimeout(() => setCopiedHtml(false), 2000);
+      const success = await copyToClipboard(html);
+      if (success) {
+        setCopiedHtml(true);
+        setTimeout(() => setCopiedHtml(false), 2000);
+      }
       setIsExportMenuOpen(false);
     } catch (err) {
       console.error('Failed to copy HTML receipt:', err);

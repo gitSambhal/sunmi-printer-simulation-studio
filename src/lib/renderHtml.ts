@@ -52,26 +52,22 @@ export function renderReceiptToHtml(data: ReceiptData, options: RenderOptions = 
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#039;');
 
-          return `<span style="font-size: ${fontSize}; letter-spacing: ${letterSpacing}; ${fontCss} ${colorCss} ${underlineCss} display: inline; white-space: pre-wrap; word-break: break-all;">${escapedText}</span>`;
+          return `<span style='font-size: ${fontSize}; letter-spacing: ${letterSpacing}; ${fontCss} ${colorCss} ${underlineCss} display: inline; white-space: pre-wrap; word-break: break-all;'>${escapedText}</span>`;
         })
         .join('');
 
       let cutDivider = '';
       if (line.hasCutHere) {
-        cutDivider = `<div style="margin: 14px 0; border-top: 2px dashed #ef4444; position: relative; text-align: center;">
-          <span style="position: relative; top: -10px; background: ${bgColor}; padding: 0 8px; font-size: 10px; color: #ef4444; font-weight: bold; border: 1px solid #fca5a5; border-radius: 10px;">✂ PAPER CUT</span>
-        </div>`;
+        cutDivider = `<div style='margin: 14px 0; border-top: 2px dashed #ef4444; position: relative; text-align: center;'><span style='position: relative; top: -10px; background: ${bgColor}; padding: 0 8px; font-size: 10px; color: #ef4444; font-weight: bold; border: 1px solid #fca5a5; border-radius: 10px;'>✂ PAPER CUT</span></div>`;
       }
 
-      return `<div style="width: 100%; min-height: 1.25em; ${alignCss} margin: 1px 0; white-space: pre-wrap; word-break: break-all; font-family: 'Courier New', Courier, 'JetBrains Mono', monospace;">${spansHtml}</div>${cutDivider}`;
+      return `<div style='width: 100%; min-height: 1.25em; ${alignCss} margin: 1px 0; white-space: pre-wrap; word-break: break-all; font-family: "Courier New", Courier, "JetBrains Mono", monospace;'>${spansHtml}</div>${cutDivider}`;
     })
     .join('');
 
-  return `<div id="receipt-container" data-receipt-width="${options.width || '80mm'}" style="width: 100%; max-width: ${widthVal}; margin: 0 auto; background-color: ${bgColor}; color: ${textColor}; font-family: 'Courier New', Courier, 'JetBrains Mono', monospace; font-size: 11.5px; line-height: 1.35; padding: ${paddingVal}; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); border: 1px solid ${borderColor}; border-radius: 4px; box-sizing: border-box;">
-  <div id="receipt-paper" data-receipt-preview="true" style="width: 100%;">
-    ${linesHtml}
-  </div>
-</div>`;
+  const rawHtml = `<div id='receipt-container' data-receipt-width='${options.width || '80mm'}' style='width: 100%; max-width: ${widthVal}; margin: 0 auto; background-color: ${bgColor}; color: ${textColor}; font-family: "Courier New", Courier, "JetBrains Mono", monospace; font-size: 11.5px; line-height: 1.35; padding: ${paddingVal}; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); border: 1px solid ${borderColor}; border-radius: 4px; box-sizing: border-box;'><div id='receipt-paper' data-receipt-preview='true' style='width: 100%;'>${linesHtml}</div></div>`;
+
+  return rawHtml.replace(/\r?\n\s*/g, '');
 }
 
 export function renderReceiptToSvg(data: ReceiptData, options: RenderOptions = {}): string {
@@ -126,16 +122,7 @@ export function renderReceiptToSvg(data: ReceiptData, options: RenderOptions = {
 
   const htmlContent = renderReceiptToHtml(data, options);
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${widthPx}" height="${calculatedHeight}" viewBox="0 0 ${widthPx} ${calculatedHeight}">
-  <rect width="100%" height="100%" fill="${options.theme === 'dark' ? '#1e293b' : '#ffffff'}" rx="4"/>
-  <foreignObject x="0" y="0" width="${widthPx}" height="${calculatedHeight}">
-    <div xmlns="http://www.w3.org/1999/xhtml" style="width: 100%; height: 100%; box-sizing: border-box;">
-      <style>
-        * { box-sizing: border-box; }
-        div, span { font-family: 'Courier New', Courier, 'JetBrains Mono', monospace; }
-      </style>
-      ${htmlContent}
-    </div>
-  </foreignObject>
-</svg>`;
+  const rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' width='${widthPx}' height='${calculatedHeight}' viewBox='0 0 ${widthPx} ${calculatedHeight}'><rect width='100%' height='100%' fill='${options.theme === 'dark' ? '#1e293b' : '#ffffff'}' rx='4'/><foreignObject x='0' y='0' width='${widthPx}' height='${calculatedHeight}'><div xmlns='http://www.w3.org/1999/xhtml' style='width: 100%; height: 100%; box-sizing: border-box;'><style>* { box-sizing: border-box; } div, span { font-family: "Courier New", Courier, "JetBrains Mono", monospace; }</style>${htmlContent}</div></foreignObject></svg>`;
+
+  return rawSvg.replace(/\r?\n\s*/g, '');
 }

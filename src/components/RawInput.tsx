@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Terminal, Hash, FileText, Trash2, Clipboard, Sparkles, Code2, Scissors, Bell, Flame, Palette, WrapText } from 'lucide-react';
+import { copyToClipboard } from '../lib/clipboard';
 
 interface RawInputProps {
   value: string;
@@ -22,10 +23,12 @@ export const RawInput: React.FC<RawInputProps> = ({
   const [isWordWrap, setIsWordWrap] = useState(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(value);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopy = async () => {
+    const success = await copyToClipboard(value);
+    if (success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   const insertCommandAtCursor = (code: string) => {

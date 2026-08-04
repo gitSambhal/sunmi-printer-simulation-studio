@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Copy, Check, Code, Terminal, Cpu, Globe, Play, Loader2, Sparkles, Image as ImageIcon, WrapText } from 'lucide-react';
+import { copyToClipboard } from '../lib/clipboard';
 
 interface ApiModalProps {
   isOpen: boolean;
@@ -126,10 +127,12 @@ print("SVG Vector Output:", data.get("svg"))`;
     }
   };
 
-  const handleCopy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedTab(key);
-    setTimeout(() => setCopiedTab(null), 2000);
+  const handleCopy = async (text: string, key: string) => {
+    const success = await copyToClipboard(text);
+    if (success) {
+      setCopiedTab(key);
+      setTimeout(() => setCopiedTab(null), 2000);
+    }
   };
 
   // Run "Try Now" Live API Request

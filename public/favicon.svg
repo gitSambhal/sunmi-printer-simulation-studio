@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.3" />
+    </filter>
+  </defs>
+  
+  <!-- Base background -->
+  <rect width="512" height="512" rx="110" fill="#09090b" />
+  
+  <!-- Receipt Paper sticking out -->
+  <g filter="url(#shadow)">
+    <path d="M 176 96 L 336 96 L 336 280 L 316 265 L 296 280 L 276 265 L 256 280 L 236 265 L 216 280 L 196 265 L 176 280 Z" fill="#ffffff" />
+    <!-- Lines on paper -->
+    <rect x="200" y="130" width="112" height="12" rx="4" fill="#09090b" opacity="0.8" />
+    <rect x="200" y="156" width="80" height="10" rx="3" fill="#09090b" opacity="0.5" />
+    <rect x="200" y="178" width="96" height="10" rx="3" fill="#09090b" opacity="0.5" />
+    <rect x="200" y="200" width="112" height="12" rx="4" fill="#f59e0b" />
+    <rect x="200" y="224" width="70" height="10" rx="3" fill="#09090b" opacity="0.5" />
+  </g>
+
+  <!-- Printer Body -->
+  <g filter="url(#shadow)">
+    <rect x="112" y="240" width="288" height="180" rx="28" fill="#18181b" stroke="#27272a" stroke-width="6" />
+    <!-- Slot opening -->
+    <rect x="152" y="240" width="208" height="18" rx="9" fill="#09090b" />
+    <!-- Status LED -->
+    <circle cx="160" cy="330" r="12" fill="#10b981" />
+    <!-- Power Button -->
+    <rect x="300" y="318" width="56" height="24" rx="12" fill="url(#grad)" />
+  </g>
+</svg>

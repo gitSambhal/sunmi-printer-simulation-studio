@@ -1,0 +1,32 @@
+{
+  "short_name": "SunmiStudio",
+  "name": "Sunmi Printer Simulation Studio - Suhail Akhtar",
+  "description": "Professional ESC/POS & Sunmi Cloud Thermal Printer Simulation Studio & Code Generator created by Suhail Akhtar (suhail.top).",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#09090b",
+  "theme_color": "#f59e0b",
+  "display": "standalone",
+  "orientation": "any",
+  "scope": "/",
+  "categories": ["utilities", "developer", "business"]
+}

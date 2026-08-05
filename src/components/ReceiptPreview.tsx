@@ -22,6 +22,7 @@ interface ReceiptPreviewProps {
 
 export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, rawString }) => {
   const [viewMode, setViewMode] = useState<'3d' | '2d'>('3d');
+  const [requestedCameraPreset, setRequestedCameraPreset] = useState<'macro' | '3/4' | 'front' | 'top' | 'floor'>('macro');
   const [isPrinting, setIsPrinting] = useState(false);
   const [printedLineCount, setPrintedLineCount] = useState<number>(data.lines.length);
   const [speed, setSpeed] = useState<number>(1); // 0.5x, 1x, 2x, 100x (Instant)
@@ -159,7 +160,10 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
     if (printedLineCount >= data.lines.length) {
       setIsPrinting(false);
       if (data.hasCut) {
-        triggerCutEffect();
+        const cutTimer = setTimeout(() => {
+          triggerCutEffect();
+        }, 1000);
+        return () => clearTimeout(cutTimer);
       }
       return;
     }
@@ -208,6 +212,8 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
     }
     setTimeout(() => {
       setActiveCutAnimation(false);
+      // Automatically zoom camera to landed receipt on floor after cut completes
+      setRequestedCameraPreset('floor');
     }, 1200);
   };
 
@@ -228,29 +234,34 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
             </span>
           </div>
 
-          {/* 3D vs 2D View Switcher */}
+          {/* 2-Way View Switcher */}
           <div className="flex items-center bg-neutral-100 dark:bg-neutral-900/90 p-1 rounded-xl border border-neutral-200 dark:border-neutral-700/80 shadow-xs">
             <button
-              onClick={() => setViewMode('3d')}
+              onClick={() => {
+                setViewMode('3d');
+                setRequestedCameraPreset('macro');
+              }}
               className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
                 viewMode === '3d'
                   ? 'bg-amber-500 text-white shadow-xs'
                   : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
               }`}
+              title="3D POS Printer interactive view"
             >
               <Box size={14} />
               <span>3D Sunmi Printer</span>
             </button>
             <button
               onClick={() => setViewMode('2d')}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
                 viewMode === '2d'
                   ? 'bg-amber-500 text-white shadow-xs'
                   : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
               }`}
+              title="100% Crisp flat digital receipt sheet view"
             >
-              <FileText size={14} />
-              <span>2D Flat View</span>
+              <Printer size={14} />
+              <span className="hidden sm:inline">Flat Receipt Sheet</span>
             </button>
           </div>
         </div>
@@ -433,6 +444,7 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
             printedLineCount={isInstantMode ? data.lines.length : printedLineCount}
             isPrinting={isPrinting}
             activeCutAnimation={activeCutAnimation}
+            requestedCameraPreset={requestedCameraPreset}
             onTriggerCut={triggerCutEffect}
             onStartPrint={handleStartPrintAnimation}
           />

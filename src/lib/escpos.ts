@@ -230,7 +230,12 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
         cutCount++;
         controlEvents.push({ type: 'cut', label: 'Cut Paper (GS V)', lineIndex: currentLineIndex() });
         flushLine(true);
-        i += 2; // GS V m
+        const m = data[i + 1] ?? 0;
+        if (m === 65 || m === 66) {
+          i += 3; // GS V m n
+        } else {
+          i += 2; // GS V m
+        }
       } else if (next === 0x42) { // GS B (White/Black Reverse Mode)
         flushSpan();
         const param = data[i + 1] ?? 0;
@@ -260,7 +265,8 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
         data[i] !== 0x1B && 
         data[i] !== 0x1D && 
         data[i] !== 0x0A && 
-        data[i] !== 0x0D
+        data[i] !== 0x0D &&
+        data[i] !== 0x07
       ) {
         i++;
       }
@@ -287,15 +293,6 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
       beepCount,
     },
   };
-}
-
-export function hexToBytes(hex: string): Uint8Array {
-  const cleanHex = hex.replace(/[^0-9A-Fa-f]/g, '');
-  const bytes = new Uint8Array(Math.floor(cleanHex.length / 2));
-  for (let i = 0; i < cleanHex.length; i += 2) {
-    bytes[i / 2] = parseInt(cleanHex.substring(i, i + 2), 16);
-  }
-  return bytes;
 }
 
 export function textToBytes(text: string): Uint8Array {

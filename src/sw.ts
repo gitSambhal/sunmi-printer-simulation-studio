@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
-import { parseEscPos, escapedStringToBytes, hexToBytes, textToBytes } from './lib/escpos';
+import { parseEscPos, escapedStringToBytes, textToBytes } from './lib/escpos';
 import { renderReceiptToHtml, renderReceiptToSvg } from './lib/renderHtml';
+import { openApiSpec, getSwaggerHtml } from './lib/openapi';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -47,21 +48,49 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
 // Helper CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept, Authorization',
+  'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Webhook-Secret',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 
 // Helper parser function
 function parsePayloadToReceipt(rawInput: string, mode: string = 'raw') {
   let bytes: Uint8Array;
-  if (mode === 'hex') {
-    bytes = hexToBytes(rawInput);
-  } else if (mode === 'text') {
+  if (mode === 'text') {
     bytes = textToBytes(rawInput);
   } else {
     bytes = escapedStringToBytes(rawInput);
   }
   return parseEscPos(bytes);
+}
+
+// Helper: Convert Webhook Order JSON into ESC/POS Command string
+function convertWebhookOrderToEscPos(body: any) {
+  const store = body.storeName || body.store || 'WEBHOOK EPOINT POS';
+  const orderId = body.orderId || body.id || 'ORD-' + Math.floor(1000 + Math.random() * 9000);
+  const items = Array.isArray(body.items) ? body.items : [
+    { name: 'Order Item 1', qty: 1, price: 15.00 },
+  ];
+  const calculatedTotal = items.reduce((sum: number, item: any) => sum + (Number(item.price) || 0) * (Number(item.qty) || 1), 0);
+  const total = body.total ?? calculatedTotal;
+
+  let escStr = `\\x1b\\x40\\x1b\\x61\\x01\\x1d\\x42\\x01 ${store.toUpperCase()} \\x1d\\x42\\x00\\n`;
+  escStr += `WEBHOOK ORDER #${orderId}\\n--------------------------------\\n`;
+  items.forEach((item: any) => {
+    const qty = item.qty || 1;
+    const name = item.name || 'Item';
+    const priceStr = `$${((Number(item.price) || 0) * qty).toFixed(2)}`;
+    const lineStr = `${qty}x ${name}`;
+    const pad = Math.max(1, 32 - lineStr.length - priceStr.length);
+    escStr += `${lineStr}${' '.repeat(pad)}${priceStr}\\n`;
+  });
+  escStr += `--------------------------------\\n`;
+  const totalValStr = `$${Number(total).toFixed(2)}`;
+  const totalLabel = `Total:`;
+  const totalPad = Math.max(1, 32 - totalLabel.length - totalValStr.length);
+  escStr += `\\x1b\\x45\\x01${totalLabel}${' '.repeat(totalPad)}${totalValStr}\\x1b\\x45\\x00\\n\\n`;
+  escStr += `[ WEBHOOK EVENT: ${body.event || 'order.created'} ]\\n`;
+  escStr += `Thank You!\\n\\x1d\\x56\\x00`;
+  return escStr;
 }
 
 // API Handler Function
@@ -83,8 +112,9 @@ async function handleApiRequest(request: Request): Promise<Response> {
       JSON.stringify({
         status: 'ok',
         service: 'ESC/POS Receipt Generator MSW/SW API',
-        version: '2.0.0 (Client-Side SW Engine)',
+        version: '2.5.0 (Client-Side SW Engine)',
         serverlessMode: 'Service Worker Interceptor',
+        endpoints: ['/api/health', '/api/render-receipt', '/api/render-image', '/api/webhook', '/api/openapi.json', '/api/docs'],
       }),
       {
         status: 200,
@@ -94,6 +124,95 @@ async function handleApiRequest(request: Request): Promise<Response> {
         },
       }
     );
+  }
+
+  // Route: OpenAPI Specification (/api/openapi.json or /openapi.json)
+  if (pathname.includes('/openapi.json')) {
+    return new Response(JSON.stringify(openApiSpec, null, 2), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      },
+    });
+  }
+
+  // Route: Swagger UI Docs (/api/docs or /docs)
+  if (pathname.endsWith('/api/docs') || pathname.endsWith('/docs')) {
+    return new Response(getSwaggerHtml('/api/openapi.json'), {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/html',
+        ...corsHeaders,
+      },
+    });
+  }
+
+  // Route: Webhook Receiver (/api/webhook or /webhook)
+  if (pathname.includes('/webhook')) {
+    try {
+      let rawStr = '';
+      let modeVal = 'raw';
+      let widthVal = '80mm';
+      let eventName = 'webhook_received';
+      let orderId = 'ORD-WEBHOOK';
+
+      if (request.method === 'POST') {
+        const cloned = request.clone();
+        const contentType = request.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const body = await cloned.json();
+          eventName = body.event || eventName;
+          orderId = body.orderId || body.id || orderId;
+          if (body.raw || body.text) {
+            rawStr = body.raw || body.text;
+          } else {
+            rawStr = convertWebhookOrderToEscPos(body);
+          }
+          modeVal = body.mode || modeVal;
+          widthVal = body.width || widthVal;
+        } else {
+          rawStr = await cloned.text();
+        }
+      }
+
+      if (!rawStr) {
+        rawStr = convertWebhookOrderToEscPos({ event: 'order.created', storeName: 'Epoint Cafe', items: [{ name: 'Test Item', qty: 1, price: 10.0 }] });
+      }
+
+      const receiptData = parsePayloadToReceipt(rawStr, modeVal);
+      const wVal = widthVal === '58mm' ? '58mm' : '80mm';
+      const html = renderReceiptToHtml(receiptData, { width: wVal, theme: 'light' });
+      const svg = renderReceiptToSvg(receiptData, { width: wVal, theme: 'light' });
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          event: eventName,
+          timestamp: new Date().toISOString(),
+          orderId,
+          width: wVal,
+          receipt: {
+            html,
+            svg,
+            stats: receiptData.stats,
+            controlEvents: receiptData.controlEvents,
+          },
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders,
+          },
+        }
+      );
+    } catch (err: any) {
+      return new Response(
+        JSON.stringify({ error: 'Failed to process webhook event in SW', details: err?.message }),
+        { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
   }
 
   // Parse parameters from body (POST) or search params (GET)

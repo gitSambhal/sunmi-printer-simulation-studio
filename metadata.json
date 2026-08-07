@@ -1,6 +1,6 @@
 {
   "name": "Sunmi Printer Simulation Studio",
-  "description": "A professional ESC/POS and Sunmi Cloud Printer receipt studio with real-time escape code parsing, hex rendering, cut-page visualization, PWA offline support, and SVG/PNG exports. Developed by Suhail Akhtar (suhail.top).",
+  "description": "A professional ESC/POS and Sunmi Cloud Printer receipt studio with real-time escape code parsing, cut-page visualization, PWA offline support, and SVG/PNG exports. Developed by Suhail Akhtar (suhail.top).",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

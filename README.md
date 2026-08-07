@@ -1,15 +1,30 @@
-# ESC/POS Thermal Receipt Visualizer & Renderer API
+# Sunmi Printer Simulator & ESC/POS Receipt Visualizer
 
-An interactive thermal printer preview emulator and high-performance ESC/POS receipt rendering engine for POS (Point of Sale), automation workflows, webhook integrations, and client/server applications.
+An interactive Sunmi thermal printer preview simulator and high-performance ESC/POS receipt rendering engine for POS (Point of Sale), automation workflows, webhook integrations, and client/server applications.
 
 ---
 
 ## 🚀 Key Features
 
-- **Real-time ESC/POS Visualizer**: Emulates 80mm and 58mm thermal printers with live feed animations and automatic guillotine cut displays.
-- **Full ESC/POS Command Parsing**: Supports text formatting (bold, underline, double width/height, reverse text), alignment (left, center, right), red print commands, barcodes (JAN13, JAN8, CODE39, ITF, CODABAR, CODE93, CODE128), QR codes, cut commands (`GS V`), and cash drawer kick pulses (`ESC p`).
-- **REST API & Direct SVG Engine**: Generates clean HTML, JSON metadata, and standalone vector SVG receipts.
+- **Real-time ESC/POS Visualizer**: Emulates 80mm and 58mm thermal printers with live feed animations, interactive 3D Sunmi printer simulator, and automatic guillotine cut displays.
+- **OpenAPI 3.0 & Interactive Swagger UI**: Built-in interactive Swagger UI endpoint at `/docs` and raw OpenAPI schema at `/api/openapi.json`.
+- **E-Commerce & POS Webhook Integration**: Dedicated `/api/webhook` endpoint converts JSON orders (from Shopify, Stripe, Square, or custom POS) directly into formatted thermal receipts.
+- **Interactive Live API Testing Studio**: Built-in REST API playground with custom header controls, real-time response latency timer in milliseconds, JSON/SVG response viewers, and outbound webhook delivery testing.
+- **Full ESC/POS Command Parsing**:
+  - **Text Formatting**: Bold (`ESC E`), Underline (`ESC -`), Double Width/Height (`GS !`), Reverse Mode / Inverted White-on-Black (`GS B`, `ESC {`), Red Print (`ESC r`).
+  - **Alignment**: Left, Center, Right (`ESC a`).
+  - **Barcodes**: JAN13 (EAN13), JAN8 (EAN8), CODE39, ITF, CODABAR, CODE93, CODE128 (`GS k`).
+  - **QR Codes**: Model 2 QR Code generation (`GS ( k`).
+  - **Hardware Controls**: Automatic paper cut detection (`GS V`), cash drawer kick pulse triggers (`ESC p`), and buzzer alerts (`ESC B`).
+- **REST API & SVG Engine**: Generates clean HTML, structured JSON metadata, and standalone vector SVG receipts.
 - **Client & Server Unified Architecture**: Works both as an Express server backend for automation tools (`curl`, Postman, Python, Node.js) and client-side (Service Worker + local fetch interceptor) for standalone browser deployment.
+
+---
+
+## 📖 OpenAPI 3.0 & Swagger UI Documentation
+
+- **Interactive Swagger UI**: Navigate to `http://localhost:3000/docs` or click **API / Swagger / Webhooks** in the UI to open the interactive documentation.
+- **OpenAPI JSON Spec**: Fetch machine-readable schema at `http://localhost:3000/api/openapi.json`.
 
 ---
 
@@ -19,7 +34,7 @@ All endpoints support both **GET** and **POST** requests, and accept payload inp
 
 ### 1. Health Check
 
-Verifies server status and listed endpoints.
+Verifies server status, engine version, and available endpoints.
 
 - **Endpoint**: `/api/health` or `/health`
 - **Method**: `GET`
@@ -29,18 +44,61 @@ Verifies server status and listed endpoints.
 {
   "status": "ok",
   "service": "ESC/POS Receipt Generator API",
-  "version": "2.0.0",
+  "version": "2.5.0",
   "endpoints": [
     "/api/health",
     "/api/render-receipt",
-    "/api/render-image"
+    "/api/render-image",
+    "/api/webhook",
+    "/api/openapi.json",
+    "/api/docs"
   ]
 }
 ```
 
 ---
 
-### 2. Render Receipt (JSON Response)
+### 2. Webhook Receiver Endpoint
+
+Accepts incoming order webhooks from e-commerce platforms or POS systems and automatically compiles them into thermal receipts.
+
+- **Endpoint**: `/api/webhook` or `/webhook`
+- **Method**: `POST`
+
+**Example Payload**:
+```json
+{
+  "event": "order.created",
+  "orderId": "ORD-9821",
+  "storeName": "EPOINT CAFE",
+  "customer": "Sarah Connor",
+  "items": [
+    { "name": "Iced Artisan Latte", "qty": 2, "price": 5.50 },
+    { "name": "Avocado Toast", "qty": 1, "price": 12.00 }
+  ],
+  "total": 23.00,
+  "width": "80mm"
+}
+```
+
+**Example Response**:
+```json
+{
+  "success": true,
+  "event": "order.created",
+  "timestamp": "2026-08-07T04:18:00.000Z",
+  "orderId": "ORD-9821",
+  "receipt": {
+    "html": "<div class=\"receipt-container\">...</div>",
+    "svg": "<svg ...>...</svg>",
+    "stats": { "lineCount": 10, "cutCount": 1 }
+  }
+}
+```
+
+---
+
+### 3. Render Receipt (JSON Response)
 
 Parses ESC/POS binary or raw text commands and returns structured JSON with rendered HTML markup, vector SVG, printer statistics, and control events.
 
@@ -51,103 +109,44 @@ Parses ESC/POS binary or raw text commands and returns structured JSON with rend
 
 | Parameter | Type | Options / Default | Description |
 | :--- | :--- | :--- | :--- |
-| `raw` / `text` | `string` | *(Required)* | The ESC/POS input payload. Can contain escape sequences (e.g. `\x1b\x45\x01`), hex string, or plain text. |
-| `mode` | `string` | `"raw"` (default), `"hex"`, `"text"` | Parsing mode. `"raw"` processes byte escapes (`\x1b`, `\x1d`), `"hex"` processes raw hex pairs (`1b4501`), `"text"` treats input as plain text. |
+| `raw` / `text` | `string` | *(Required)* | The ESC/POS input payload. Can contain escape sequences (e.g. `\x1b\x45\x01`) or plain text. |
+| `mode` | `string` | `"raw"` (default), `"text"` | Parsing mode. `"raw"` processes byte escapes (`\x1b`, `\x1d`), `"text"` treats input as plain text. |
 | `width` | `string` | `"80mm"` (default), `"58mm"` | Receipt paper width specification. |
 | `theme` | `string` | `"light"` (default), `"dark"` | Aesthetic color theme for output HTML/SVG. |
 
-#### Example JSON Response
-
-```json
-{
-  "success": true,
-  "width": "80mm",
-  "html": "<div class=\"receipt-container\">...</div>",
-  "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"384\" height=\"420\">...</svg>",
-  "stats": {
-    "characterCount": 182,
-    "lineCount": 12,
-    "cutCount": 1,
-    "barcodeCount": 1,
-    "qrCount": 0,
-    "hasCashDrawerPulse": true,
-    "redSpanCount": 0,
-    "reverseSpanCount": 0
-  },
-  "controlEvents": [
-    {
-      "type": "CASH_DRAWER_PULSE",
-      "pin": "pin2",
-      "onTimeMs": 50,
-      "offTimeMs": 500,
-      "description": "Drawer kick pulse sent to Pin 2 (50ms on / 500ms off)"
-    },
-    {
-      "type": "CUT",
-      "mode": "partial",
-      "description": "Partial Paper Cut (GS V)"
-    }
-  ]
-}
-```
-
 ---
 
-### 3. Render Receipt Image / SVG
+### 4. Render Receipt Image / SVG
 
-Generates a direct image output or JSON data URL suitable for `<img>` tags, PDF export, or instant browser preview.
+Generates direct image output or JSON data URL suitable for `<img>` tags, PDF export, or instant browser preview.
 
 - **Endpoint**: `/api/render-image` or `/render-image`
 - **Methods**: `GET` | `POST`
-
-#### Parameters
-
-| Parameter | Type | Options / Default | Description |
-| :--- | :--- | :--- | :--- |
-| `raw` / `text` | `string` | *(Optional)* | ESC/POS input string or hex payload. |
-| `mode` | `string` | `"raw"` (default), `"hex"`, `"text"` | Input parser mode. |
-| `width` | `string` | `"80mm"` (default), `"58mm"` | Paper width. |
-| `format` | `string` | `"svg"` (default), `"json"` | Returns `image/svg+xml` directly when `"svg"`, or a JSON payload containing SVG and Base64 Data URL when `"json"`. |
 
 ---
 
 ## 💻 Automation & cURL Examples
 
-### cURL GET JSON Receipt
-```bash
-curl "http://localhost:3000/api/render-receipt?width=80mm&text=Epoint%20Store%0A--------------------------------%0ASample%20Receipt%0AItem%201%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%2410.00%0ATotal%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%2410.00"
-```
-
-### cURL POST JSON Payload (ESC/POS Control Escapes)
+### cURL POST JSON Payload with Reverse Text & Cut
 ```bash
 curl -X POST http://localhost:3000/api/render-receipt \
   -H "Content-Type: application/json" \
   -d '{
-    "raw": "\\x1b\\x40\\x1b\\x61\\x01\\x1b\\x45\\x01EPOINT STORE\\x1b\\x45\\x00\\n--------------------------------\\nItem A                   $25.00\\n\\x1d\\x56\\x41\\x00",
+    "raw": "\\x1b\\x40\\x1b\\x61\\x01\\x1d\\x42\\x01 EPOINT STORE \\x1d\\x42\\x00\\n--------------------------------\\nItem A                   $25.00\\n\\x1d\\x56\\x41\\x00",
     "width": "80mm",
     "mode": "raw"
   }'
 ```
 
-### cURL GET Direct SVG Image
+### cURL Webhook Order Post
 ```bash
-curl "http://localhost:3000/api/render-image?width=80mm&text=Epoint%20Store%20Test" -o receipt.svg
-```
-
-### Python Integration Example
-```python
-import requests
-
-url = "http://localhost:3000/api/render-receipt"
-payload = {
-    "raw": "\x1b\x61\x01EPOINT STORE TEST\n\x1b\x61\x00Item 1             $10.00\n\x1d\x56\x00",
-    "width": "80mm",
-    "mode": "raw"
-}
-
-response = requests.post(url, json=payload)
-data = response.json()
-print("Generated SVG:", data.get("svg"))
+curl -X POST http://localhost:3000/api/webhook \
+  -H "Content-Type: application/json" \
+  -d '{
+    "event": "order.created",
+    "storeName": "Epoint Store",
+    "items": [{ "name": "Latte", "qty": 1, "price": 4.50 }]
+  }'
 ```
 
 ---
@@ -155,6 +154,9 @@ print("Generated SVG:", data.get("svg"))
 ## 🛠️ Local Development & Execution
 
 ### Running with Docker Compose (Recommended)
+
+Uses the optimized `sunmi-printer-simulator:latest` image definition:
+
 ```bash
 # Build image and start container locally
 docker compose up --build -d
@@ -166,16 +168,8 @@ docker compose logs -f
 docker compose down
 ```
 
-### Running with Docker CLI directly
-```bash
-# Build Docker image
-docker build -t escpos-renderer .
-
-# Run container on port 3000
-docker run -p 3000:3000 escpos-renderer
-```
-
 ### Running with Node.js
+
 ```bash
 # Install dependencies
 npm install
@@ -187,5 +181,3 @@ npm run dev
 npm run build
 npm start
 ```
-
-The Express server binds to `0.0.0.0:3000` with CORS enabled for seamless integration across all automation platforms.

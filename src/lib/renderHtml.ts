@@ -31,13 +31,14 @@ export function renderReceiptToHtml(data: ReceiptData, options: RenderOptions = 
           const isRed = style.color === 'red';
           const isReverse = style.reverse;
 
-          const colorCss = isRed
-            ? 'color: #dc2626; font-weight: 600;'
-            : isReverse
-            ? 'color: #ffffff; background-color: #000000; padding: 0 3px; font-weight: 700; border-radius: 2px;'
-            : `color: ${textColor};`;
+          let colorCss = `color: ${textColor};`;
+          if (isReverse) {
+            colorCss = 'color: #ffffff; background-color: #000000; padding: 1px 4px; font-weight: 700; border-radius: 2px;';
+          } else if (isRed) {
+            colorCss = 'color: #dc2626; font-weight: 600;';
+          }
 
-          const fontCss = style.bold ? 'font-weight: 700;' : 'font-weight: 400;';
+          const fontCss = (style.bold || isReverse || style.scaleX > 1 || style.scaleY > 1) ? 'font-weight: 700;' : 'font-weight: 400;';
           const italicCss = style.italic ? 'font-style: italic;' : '';
           const underlineCss = style.underline ? 'text-decoration: underline;' : '';
 
@@ -62,13 +63,12 @@ export function renderReceiptToHtml(data: ReceiptData, options: RenderOptions = 
         cutDivider = `<div style='margin: 14px 0; border-top: 2px dashed #ef4444; position: relative; text-align: center;'><span style='position: relative; top: -10px; background: ${bgColor}; padding: 0 8px; font-size: 10px; color: #ef4444; font-weight: bold; border: 1px solid #fca5a5; border-radius: 10px;'>✂ PAPER CUT</span></div>`;
       }
 
-      return `<div style='width: 100%; min-height: 1.25em; ${alignCss} margin: 1px 0; white-space: pre-wrap; word-break: break-all; font-family: "Courier New", Courier, "JetBrains Mono", monospace;'>${spansHtml}</div>${cutDivider}`;
+      const lineContent = spansHtml.length > 0 ? spansHtml : '&#160;';
+      return `<div style='width: 100%; min-height: 1.25em; ${alignCss} margin: 1px 0; white-space: pre-wrap; word-break: break-all; font-family: "Courier New", Courier, "JetBrains Mono", monospace;'>${lineContent}</div>${cutDivider}`;
     })
-    .join('');
+    .join('\n');
 
-  const rawHtml = `<div id='receipt-container' data-receipt-width='${options.width || '80mm'}' style='width: 100%; max-width: ${widthVal}; margin: 0 auto; background-color: ${bgColor}; color: ${textColor}; font-family: "Courier New", Courier, "JetBrains Mono", monospace; font-size: 11.5px; line-height: 1.35; padding: ${paddingVal}; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); border: 1px solid ${borderColor}; border-radius: 4px; box-sizing: border-box;'><div id='receipt-paper' data-receipt-preview='true' style='width: 100%;'>${linesHtml}</div></div>`;
-
-  return rawHtml.replace(/\r?\n\s*/g, '');
+  return `<div id='receipt-container' data-receipt-width='${options.width || '80mm'}' style='width: 100%; max-width: ${widthVal}; margin: 0 auto; background-color: ${bgColor}; color: ${textColor}; font-family: "Courier New", Courier, "JetBrains Mono", monospace; font-size: 11.5px; line-height: 1.35; padding: ${paddingVal}; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); border: 1px solid ${borderColor}; border-radius: 4px; box-sizing: border-box;'><div id='receipt-paper' data-receipt-preview='true' style='width: 100%;'>${linesHtml}</div></div>`;
 }
 
 export function renderReceiptToSvg(data: ReceiptData, options: RenderOptions = {}): string {

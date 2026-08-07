@@ -1,11 +1,12 @@
 version: '3.8'
 
 services:
-  escpos-renderer:
+  sunmi-printer-simulator:
+    image: sunmi-printer-simulator:latest
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: escpos-receipt-renderer
+    container_name: sunmi-printer-simulator
     ports:
       - "3000:3000"
     environment:

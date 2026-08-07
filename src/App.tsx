@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Sun, Moon, Printer, Terminal, ShieldCheck, Download, Wifi, WifiOff, Globe, ExternalLink, Smartphone, PanelLeftClose, PanelLeftOpen, GripVertical } from 'lucide-react';
 import { RawInput } from './components/RawInput';
 import { ReceiptPreview } from './components/ReceiptPreview';
-import { parseEscPos, hexToBytes, textToBytes, escapedStringToBytes } from './lib/escpos';
+import { parseEscPos, textToBytes, escapedStringToBytes } from './lib/escpos';
 
 const EXAMPLES = {
   complex: `\\u001dB\\u0001\\u001bE\\u0001        ⚠ MANUAL PROCESSING REQUIRED ⚠        \\u001bE\\u0000\\u001dB\\u0000\\n\\u001bE\\u0001               Epoint Store Test                \\u001bE\\u0000\\n\\n------------------------------------------------\\n\\nOrder Type                               Dine In\\nPlaced On                        Apr 29, 1:46 PM\\nOrder ID                               856407029\\nTable                                         19\\nQueue No                                    0004\\n\\n\\u001br\\u0001+----------------------------------------------+\\u001br\\u0000\\n\\u001br\\u0001|\\u001br\\u0000 \\u001br\\u0001\\u001bE\\u0001ORDER NOT SENT TO POS\\u001bE\\u0000\\u001br\\u0000                        \\u001br\\u0001|\\u001br\\u0000\\n\\u001br\\u0001|\\u001br\\u0000                                              \\u001br\\u0001|\\u001br\\u0000\\n\\u001br\\u0001|\\u001br\\u0000 Error Code                               \\u001br\\u0001\\u001bE\\u0001504\\u001bE\\u0000\\u001br\\u0000 \\u001br\\u0001|\\u001br\\u0000\\n\\u001br\\u0001|\\u001br\\u0000 Reason           Timeout from POS/cURL error \\u001br\\u0001|\\u001br\\u0000\\n\\u001br\\u0001|\\u001br\\u0000                                              \\u001br\\u0001|\\u001br\\u0000\\n\\u001br\\u0001| -------------------------------------------- |\\u001br\\u0000\\n\\u001br\\u0001|\\u001br\\u0000                                              \\u001br\\u0001|\\u001br\\u0000\\n\\u001br\\u0001|\\u001br\\u0000 Check if order already in POS before         \\u001br\\u0001|\\u001br\\u0000\\n\\u001br\\u0001|\\u001br\\u0000 entering manually                            \\u001br\\u0001|\\u001br\\u0000\\n\\u001br\\u0001+----------------------------------------------+\\u001br\\u0000\\n\\n+----------------------------------------------+\\n| [ ] Sent to kitchen manually                 |\\n+----------------------------------------------+\\n\\n------------------------------------------------\\n\\n4x Puff Pastry                             23.20\\n2x Mushroom soup 1                         80.00\\n3x Vegetable                               42.00\\n3x Potato Wedges                          285.30\\n  3x Diane Half                            56.70\\n  3x Diane Whole                          101.70\\n    3x Beef Pie                            55.50\\n    3x Diane Half                          56.70\\n5x Mushroom soup                           50.00\\n\\n\\n------------------------------------------------\\n\\n\\u001bE\\u0001Subtotal\\u001bE\\u0000                              SGD 480.50\\nTotal Items                                   17\\nPayment                                   CASHAC\\nService Charge Charge                 + SGD 3.00\\nGST 8% 8%                            + SGD 38.68\\nTax Type                               EXCLUSIVE\\n------------------------------------------------\\nGrand Total                           SGD 522.18\\n\\n------------------------------------------------\\n\\n\\u001bE\\u0001SPECIAL REQUEST\\u001bE\\u0000\\nThis is special request\\n\\n\\n\\n\\n\\n\\u001dV\\u0000`,
@@ -138,16 +138,46 @@ export default function App() {
   };
 
   const handleLoadPreset = (key: string) => {
-    if (key === 'kitchen') {
-      setInputMode('raw');
-      setInputValue(EXAMPLES.kitchen);
-    } else if (key === 'standard') {
-      setInputMode('raw');
-      setInputValue(EXAMPLES.standard);
+    let presetText = EXAMPLES.complex;
+    if (key === 'kitchen') presetText = EXAMPLES.kitchen;
+    else if (key === 'standard') presetText = EXAMPLES.standard;
+
+    if (inputMode === 'text') {
+      setInputValue(presetText.replace(/\\u[0-9a-fA-F]{4}/g, '').replace(/\\x[0-9a-fA-F]{2}/g, ''));
     } else {
-      setInputMode('raw');
-      setInputValue(EXAMPLES.complex);
+      setInputValue(presetText);
     }
+  };
+
+  const handleModeChange = (newMode: 'text' | 'raw') => {
+    if (newMode === inputMode) return;
+
+    // Derive current byte buffer
+    let currentBytes: Uint8Array;
+    if (inputMode === 'raw') {
+      currentBytes = escapedStringToBytes(inputValue);
+    } else {
+      currentBytes = textToBytes(inputValue);
+    }
+
+    if (newMode === 'text') {
+      setInputValue(new TextDecoder().decode(currentBytes));
+    } else {
+      // Reconstruct raw escape string representation
+      let rawStr = '';
+      for (let i = 0; i < currentBytes.length; i++) {
+        const b = currentBytes[i];
+        if (b === 0x0A) rawStr += '\\n';
+        else if (b === 0x0D) rawStr += '\\r';
+        else if (b === 0x09) rawStr += '\\t';
+        else if (b === 0x1B) rawStr += '\\u001b';
+        else if (b === 0x1D) rawStr += '\\u001d';
+        else if (b < 32 || b > 126) rawStr += `\\x${b.toString(16).padStart(2, '0')}`;
+        else rawStr += String.fromCharCode(b);
+      }
+      setInputValue(rawStr);
+    }
+    setInputMode(newMode);
   };
 
   const receiptData = useMemo(() => {
@@ -198,7 +228,7 @@ export default function App() {
               </span>
             </div>
             <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
-              Professional ESC/POS &amp; Sunmi Cloud Thermal Printer Emulator with Escape Code Parsing, Hex Byte Visualizer &amp; SVG/PNG Exports
+              Professional ESC/POS &amp; Sunmi Cloud Thermal Printer Emulator with Escape Code Parsing &amp; SVG/PNG Exports
             </p>
           </div>
         </div>
@@ -294,7 +324,7 @@ export default function App() {
             value={inputValue}
             onChange={setInputValue}
             mode={inputMode}
-            onModeChange={setInputMode}
+            onModeChange={handleModeChange}
             onClear={() => setInputValue('')}
             onLoadPreset={handleLoadPreset}
           />

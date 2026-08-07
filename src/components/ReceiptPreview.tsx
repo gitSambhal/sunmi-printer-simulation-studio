@@ -119,7 +119,7 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
   // Copy Rendered HTML Code
   const handleCopyHtml = async () => {
     try {
-      const html = renderReceiptToHtml(data, { width });
+      const html = renderReceiptToHtml(data, { width, theme: 'light' });
       const success = await copyToClipboard(html);
       if (success) {
         setCopiedHtml(true);
@@ -419,10 +419,10 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
             <button
               onClick={() => setIsApiModalOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 active:scale-95 rounded-lg text-xs font-bold transition-all border border-amber-500/30"
-              title="Open REST API & cURL / Automation Integration Guide"
+              title="Open REST API, OpenAPI Docs, Webhooks & Interactive Playground"
             >
               <Cpu size={14} />
-              <span>API / Automation</span>
+              <span>API / Swagger / Webhooks</span>
             </button>
           </div>
         </div>
@@ -593,40 +593,44 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
                     )}
 
                     <div className={`w-full max-w-full overflow-hidden ${alignmentClass} min-h-[1.25em] whitespace-pre-wrap break-all font-mono`}>
-                      {line.spans.map((span, sIdx) => {
-                        const spanStyle = span.style;
-                        const hasScaleX = spanStyle.scaleX > 1;
-                        const hasScaleY = spanStyle.scaleY > 1;
+                      {line.spans.length === 0 ? (
+                        '\u00A0'
+                      ) : (
+                        line.spans.map((span, sIdx) => {
+                          const spanStyle = span.style;
+                          const hasScaleX = spanStyle.scaleX > 1;
+                          const hasScaleY = spanStyle.scaleY > 1;
 
-                        const fontSize = hasScaleY ? `${Math.min(20, 11.5 * spanStyle.scaleY)}px` : '11.5px';
-                        const letterSpacing = hasScaleX ? '0.08em' : '0px';
+                          const fontSize = hasScaleY ? `${Math.min(20, 11.5 * spanStyle.scaleY)}px` : '11.5px';
+                          const letterSpacing = hasScaleX ? '0.08em' : '0px';
 
-                        const isReverse = spanStyle.reverse;
-                        const isRed = spanStyle.color === 'red';
+                          const isReverse = spanStyle.reverse;
+                          const isRed = spanStyle.color === 'red';
 
-                        return (
-                          <span
-                            key={sIdx}
-                            className={`
-                              inline whitespace-pre-wrap break-all transition-colors duration-150
-                              ${spanStyle.bold ? 'font-bold' : 'font-normal'}
-                              ${spanStyle.italic ? 'italic' : ''}
-                              ${spanStyle.underline ? 'underline decoration-1 underline-offset-2' : ''}
-                            `}
-                            style={{
-                              fontSize,
-                              letterSpacing,
-                              fontWeight: spanStyle.bold || hasScaleX || hasScaleY ? 700 : 400,
-                              backgroundColor: isReverse ? '#000000' : 'transparent',
-                              color: isReverse ? '#ffffff' : isRed ? '#dc2626' : '#111827',
-                              padding: isReverse ? '1px 4px' : '0',
-                              borderRadius: isReverse ? '2px' : '0',
-                            }}
-                          >
-                            {span.text}
-                          </span>
-                        );
-                      })}
+                          return (
+                            <span
+                              key={sIdx}
+                              className={`
+                                inline whitespace-pre-wrap break-all transition-colors duration-150
+                                ${spanStyle.bold ? 'font-bold' : 'font-normal'}
+                                ${spanStyle.italic ? 'italic' : ''}
+                                ${spanStyle.underline ? 'underline decoration-1 underline-offset-2' : ''}
+                              `}
+                              style={{
+                                fontSize,
+                                letterSpacing,
+                                fontWeight: spanStyle.bold || hasScaleX || hasScaleY ? 700 : 400,
+                                backgroundColor: isReverse ? '#000000' : 'transparent',
+                                color: isReverse ? '#ffffff' : isRed ? '#dc2626' : '#111827',
+                                padding: isReverse ? '1px 4px' : '0',
+                                borderRadius: isReverse ? '2px' : '0',
+                              }}
+                            >
+                              {span.text || '\u00A0'}
+                            </span>
+                          );
+                        })
+                      )}
                     </div>
 
                     {/* Cut Line Visual Indicator */}

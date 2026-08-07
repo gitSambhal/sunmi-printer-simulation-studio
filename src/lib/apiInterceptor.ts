@@ -1,11 +1,9 @@
-import { parseEscPos, escapedStringToBytes, hexToBytes, textToBytes } from './escpos';
+import { parseEscPos, escapedStringToBytes, textToBytes } from './escpos';
 import { renderReceiptToHtml, renderReceiptToSvg } from './renderHtml';
 
 function parsePayloadToReceipt(rawInput: string, mode: string = 'raw') {
   let bytes: Uint8Array;
-  if (mode === 'hex') {
-    bytes = hexToBytes(rawInput);
-  } else if (mode === 'text') {
+  if (mode === 'text') {
     bytes = textToBytes(rawInput);
   } else {
     bytes = escapedStringToBytes(rawInput);

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Terminal, Hash, FileText, Trash2, Clipboard, Sparkles, Code2, Scissors, Bell, Flame, Palette, WrapText } from 'lucide-react';
+import { Terminal, FileText, Trash2, Clipboard, Sparkles, Code2, Scissors, Bell, Flame, Palette, WrapText } from 'lucide-react';
 import { copyToClipboard } from '../lib/clipboard';
 
 interface RawInputProps {
@@ -63,8 +63,8 @@ export const RawInput: React.FC<RawInputProps> = ({
     <div className="flex flex-col h-full bg-white dark:bg-neutral-800 border-r border-neutral-200 dark:border-neutral-700 transition-colors duration-300">
       {/* Header Tabs & Actions */}
       <div className="p-3 border-b border-neutral-200 dark:border-neutral-700 flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 bg-neutral-100 dark:bg-neutral-900 p-1 rounded-lg">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-1 bg-neutral-100 dark:bg-neutral-900 p-1 rounded-lg">
             <button
               onClick={() => onModeChange('raw')}
               className={`px-3 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 ${
@@ -105,7 +105,7 @@ export const RawInput: React.FC<RawInputProps> = ({
             <button
               onClick={handleCopy}
               className="p-1.5 text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white transition-colors rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700"
-              title="Copy Raw Buffer"
+              title="Copy Buffer"
             >
               <Clipboard size={16} className={copied ? 'text-emerald-500' : ''} />
             </button>
@@ -145,7 +145,7 @@ export const RawInput: React.FC<RawInputProps> = ({
         </div>
       </div>
 
-      {/* Raw ESC/POS Quick Insertion Bar */}
+      {/* ESC/POS Quick Insertion Bar */}
       {mode === 'raw' && (
         <div className="px-3 py-2 bg-neutral-50 dark:bg-neutral-900/60 border-b border-neutral-200 dark:border-neutral-700 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
           <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-400 whitespace-nowrap">

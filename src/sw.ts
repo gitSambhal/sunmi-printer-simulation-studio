@@ -195,8 +195,6 @@ async function handleApiRequest(request: Request): Promise<Response> {
           receipt: {
             html,
             svg,
-            stats: receiptData.stats,
-            controlEvents: receiptData.controlEvents,
           },
         }),
         {
@@ -262,8 +260,6 @@ async function handleApiRequest(request: Request): Promise<Response> {
           width: widthVal,
           html,
           svg,
-          stats: receiptData.stats,
-          controlEvents: receiptData.controlEvents,
         }),
         {
           status: 200,

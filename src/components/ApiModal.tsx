@@ -302,7 +302,6 @@ async function generateThermalReceipt() {
   const data = await response.json();
   console.log("Status Code:", response.status);
   console.log("SVG Vector Output:", data.svg);
-  console.log("Line Count:", data.stats?.lineCount);
 }
 
 generateThermalReceipt();`;
@@ -320,7 +319,6 @@ response = requests.post(url, json=payload)
 data = response.json()
 
 print("Status:", response.status_code)
-print("Line Count:", data.get("stats", {}).get("lineCount"))
 print("SVG Output:", data.get("svg"))`;
 
   const n8nSnippet = `{

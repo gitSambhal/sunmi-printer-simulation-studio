@@ -205,25 +205,6 @@ export const openApiSpec = {
           width: { type: 'string', example: '80mm' },
           html: { type: 'string', description: 'Rendered DOM HTML string' },
           svg: { type: 'string', description: 'Standalone vector SVG markup' },
-          stats: {
-            type: 'object',
-            properties: {
-              totalChars: { type: 'number', example: 124 },
-              cutCount: { type: 'number', example: 1 },
-              beepCount: { type: 'number', example: 1 },
-              drawerCount: { type: 'number', example: 1 },
-            },
-          },
-          controlEvents: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                type: { type: 'string', example: 'CUT' },
-                description: { type: 'string', example: 'Paper Cut Executed' },
-              },
-            },
-          },
         },
       },
       WebhookPayload: {

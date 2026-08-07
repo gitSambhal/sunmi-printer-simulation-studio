@@ -128,8 +128,6 @@ const handleWebhook = (req: any, res: any) => {
       receipt: {
         html,
         svg,
-        stats: receiptData.stats,
-        controlEvents: receiptData.controlEvents,
       },
     });
   } catch (err: any) {
@@ -137,7 +135,7 @@ const handleWebhook = (req: any, res: any) => {
   }
 };
 
-// GET or POST /api/render-receipt -> Returns JSON with HTML, SVG, stats, and controlEvents
+// GET or POST /api/render-receipt -> Returns JSON with HTML and SVG
 const handleRenderReceipt = (req: any, res: any) => {
   try {
     let rawString = '';
@@ -187,8 +185,6 @@ const handleRenderReceipt = (req: any, res: any) => {
       width: widthVal,
       html,
       svg,
-      stats: receiptData.stats,
-      controlEvents: receiptData.controlEvents,
     });
   } catch (err: any) {
     console.error('Error rendering receipt API:', err);

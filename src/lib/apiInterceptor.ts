@@ -80,8 +80,6 @@ export function registerApiInterceptor() {
               width: widthVal,
               html,
               svg,
-              stats: receiptData.stats,
-              controlEvents: receiptData.controlEvents,
             }),
             {
               status: 200,

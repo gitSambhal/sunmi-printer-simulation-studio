@@ -264,8 +264,9 @@ export function getSwaggerHtml(specUrl = '/api/openapi.json') {
   <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-standalone-preset.js" charset="UTF-8"></script>
   <script>
     window.onload = function() {
+      const specObj = ${JSON.stringify(openApiSpec)};
       window.ui = SwaggerUIBundle({
-        url: "${specUrl}",
+        spec: specObj,
         dom_id: '#swagger-ui',
         deepLinking: true,
         presets: [

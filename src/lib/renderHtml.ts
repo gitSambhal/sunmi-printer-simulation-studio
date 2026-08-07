@@ -38,6 +38,7 @@ export function renderReceiptToHtml(data: ReceiptData, options: RenderOptions = 
             : `color: ${textColor};`;
 
           const fontCss = style.bold ? 'font-weight: 700;' : 'font-weight: 400;';
+          const italicCss = style.italic ? 'font-style: italic;' : '';
           const underlineCss = style.underline ? 'text-decoration: underline;' : '';
 
           const scaleY = style.scaleY > 1 ? style.scaleY : 1;
@@ -52,7 +53,7 @@ export function renderReceiptToHtml(data: ReceiptData, options: RenderOptions = 
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#039;');
 
-          return `<span style='font-size: ${fontSize}; letter-spacing: ${letterSpacing}; ${fontCss} ${colorCss} ${underlineCss} display: inline; white-space: pre-wrap; word-break: break-all;'>${escapedText}</span>`;
+          return `<span style='font-size: ${fontSize}; letter-spacing: ${letterSpacing}; ${fontCss} ${italicCss} ${colorCss} ${underlineCss} display: inline; white-space: pre-wrap; word-break: break-all;'>${escapedText}</span>`;
         })
         .join('');
 

@@ -145,6 +145,7 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
 
   // Trigger Print Animation
   const handleStartPrintAnimation = () => {
+    printerAudio.resume();
     setIsInstantMode(false);
     setIsPrinting(true);
     setPrintedLineCount(0);
@@ -288,13 +289,31 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
             </button>
 
             <button
-              onClick={() => setIsMuted(!isMuted)}
+              onClick={() => {
+                printerAudio.resume();
+                printerAudio.playBuzzerSound();
+                setActiveBeepAlert('POS Buzzer Beep (ESC B / BEL)');
+                setTimeout(() => setActiveBeepAlert(null), 1800);
+              }}
+              className="p-1 text-neutral-600 hover:text-amber-600 dark:text-neutral-300 dark:hover:text-amber-400 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+              title="Test POS Buzzer Sound (ESC B / BEL)"
+            >
+              <Bell size={14} />
+            </button>
+
+            <button
+              onClick={() => {
+                const newMute = !isMuted;
+                setIsMuted(newMute);
+                printerAudio.setMuted(newMute);
+                if (!newMute) printerAudio.resume();
+              }}
               className={`p-1 rounded-md transition-colors ${
                 isMuted
                   ? 'text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700'
                   : 'text-amber-600 dark:text-amber-400 bg-amber-500/10'
               }`}
-              title={isMuted ? 'Unmute Thermal Printer Buzzer' : 'Mute Thermal Printer Buzzer'}
+              title={isMuted ? 'Unmute Thermal Printer Sound' : 'Mute Thermal Printer Sound'}
             >
               {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
             </button>
@@ -537,7 +556,7 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
           {/* Paper Container Emerging From Slot */}
           <motion.div
             layout
-            className={`bg-white dark:bg-neutral-800 text-black dark:text-neutral-100 shadow-2xl w-full ${containerWidth} min-h-[480px] rounded-b-md flex flex-col relative transition-all duration-300 border-x border-b border-neutral-200 dark:border-neutral-700 ${
+            className={`bg-white dark:bg-stone-50 text-neutral-900 shadow-2xl w-full ${containerWidth} min-h-[480px] rounded-b-md flex flex-col relative transition-all duration-300 border-x border-b border-neutral-200 dark:border-neutral-700 ${
               activeCutAnimation ? 'translate-y-1 transition-transform' : ''
             }`}
             id="receipt-paper"
@@ -582,25 +601,26 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
                         const fontSize = hasScaleY ? `${Math.min(20, 11.5 * spanStyle.scaleY)}px` : '11.5px';
                         const letterSpacing = hasScaleX ? '0.08em' : '0px';
 
+                        const isReverse = spanStyle.reverse;
+                        const isRed = spanStyle.color === 'red';
+
                         return (
                           <span
                             key={sIdx}
                             className={`
                               inline whitespace-pre-wrap break-all transition-colors duration-150
                               ${spanStyle.bold ? 'font-bold' : 'font-normal'}
+                              ${spanStyle.italic ? 'italic' : ''}
                               ${spanStyle.underline ? 'underline decoration-1 underline-offset-2' : ''}
-                              ${
-                                spanStyle.reverse
-                                  ? 'bg-black text-white dark:bg-white dark:text-black px-1 mx-[0.5px] font-bold rounded-xs'
-                                  : spanStyle.color === 'red'
-                                  ? 'text-red-600 dark:text-red-400 font-semibold'
-                                  : 'text-neutral-900 dark:text-neutral-100'
-                              }
                             `}
                             style={{
                               fontSize,
                               letterSpacing,
                               fontWeight: spanStyle.bold || hasScaleX || hasScaleY ? 700 : 400,
+                              backgroundColor: isReverse ? '#000000' : 'transparent',
+                              color: isReverse ? '#ffffff' : isRed ? '#dc2626' : '#111827',
+                              padding: isReverse ? '1px 4px' : '0',
+                              borderRadius: isReverse ? '2px' : '0',
                             }}
                           >
                             {span.text}
@@ -642,12 +662,14 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
       )}
 
       {/* REST API & Automation Modal */}
-      <ApiModal
-        isOpen={isApiModalOpen}
-        onClose={() => setIsApiModalOpen(false)}
-        rawString={rawString}
-        width={width}
-      />
+      {isApiModalOpen && (
+        <ApiModal
+          isOpen={isApiModalOpen}
+          onClose={() => setIsApiModalOpen(false)}
+          rawString={rawString}
+          width={width}
+        />
+      )}
     </div>
   );
 };

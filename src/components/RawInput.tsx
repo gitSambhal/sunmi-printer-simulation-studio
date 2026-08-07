@@ -48,13 +48,15 @@ export const RawInput: React.FC<RawInputProps> = ({
 
   const commandChips = [
     { label: 'Paper Cut', code: '\\u001dV\\u0000', icon: Scissors, color: 'hover:border-blue-500 hover:text-blue-500' },
+    { label: 'Buzzer Beep', code: '\\u001bB\\u0001\\u0001', icon: Bell, color: 'hover:border-yellow-500 hover:text-yellow-500' },
     { label: 'Red Print', code: '\\u001br\\u0001', icon: Flame, color: 'hover:border-red-500 hover:text-red-500' },
     { label: 'Black Print', code: '\\u001br\\u0000', icon: Palette, color: 'hover:border-neutral-500' },
     { label: 'Bold On', code: '\\u001bE\\u0001', icon: Code2, color: 'hover:border-amber-500 hover:text-amber-500' },
     { label: 'Bold Off', code: '\\u001bE\\u0000', icon: Code2, color: 'hover:border-neutral-400' },
+    { label: 'Italic On', code: '\\u001b4', icon: Code2, color: 'hover:border-indigo-500 hover:text-indigo-500' },
+    { label: 'Italic Off', code: '\\u001b5', icon: Code2, color: 'hover:border-neutral-400' },
     { label: 'Reverse On', code: '\\u001dB\\u0001', icon: Sparkles, color: 'hover:border-purple-500 hover:text-purple-500' },
     { label: 'Reverse Off', code: '\\u001dB\\u0000', icon: Sparkles, color: 'hover:border-neutral-400' },
-    { label: 'Buzzer Beep', code: '\\u001dB\\u0001', icon: Bell, color: 'hover:border-yellow-500 hover:text-yellow-500' },
   ];
 
   return (

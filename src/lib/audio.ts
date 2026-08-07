@@ -32,6 +32,12 @@ class PrinterSoundEngine {
     return this.isMuted;
   }
 
+  public resume() {
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  }
+
   /**
    * Sound emitted when thermal paper advances one line
    */
@@ -108,34 +114,58 @@ class PrinterSoundEngine {
   }
 
   /**
-   * POS Buzzer alert sound (ESC B / Sunmi Beep)
+   * POS Buzzer alert sound (ESC B / BEL / Sunmi Beep)
    */
   public playBuzzerSound() {
     const ctx = this.getContext();
     if (!ctx) return;
 
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+
     try {
-      const playBeep = (timeOffset: number) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
+      const playSingleBeep = (timeOffset: number) => {
+        const now = ctx.currentTime + timeOffset;
 
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(1800, ctx.currentTime + timeOffset);
+        // Main high-pitched piezo buzzer tone
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
 
-        gain.gain.setValueAtTime(0.12, ctx.currentTime + timeOffset);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + timeOffset + 0.12);
+        osc1.type = 'square';
+        osc1.frequency.setValueAtTime(2400, now);
 
-        osc.connect(gain);
-        gain.connect(ctx.destination);
+        gain1.gain.setValueAtTime(0.22, now);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
 
-        osc.start(ctx.currentTime + timeOffset);
-        osc.stop(ctx.currentTime + timeOffset + 0.12);
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+
+        osc1.start(now);
+        osc1.stop(now + 0.12);
+
+        // Secondary harmonic tone for rich mechanical buzzer click
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+
+        osc2.type = 'triangle';
+        osc2.frequency.setValueAtTime(2800, now);
+
+        gain2.gain.setValueAtTime(0.15, now);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+
+        osc2.start(now);
+        osc2.stop(now + 0.12);
       };
 
-      playBeep(0);
-      playBeep(0.15);
+      // Play 2 crisp, distinct POS buzzer beeps
+      playSingleBeep(0);
+      playSingleBeep(0.16);
     } catch {
-      // Ignore
+      // Ignore audio errors
     }
   }
 

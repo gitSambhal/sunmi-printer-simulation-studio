@@ -69,6 +69,7 @@ export const Sunmi3DPrinter: React.FC<Sunmi3DPrinterProps> = ({
 
   const isHatchOpenRef = useRef(isHatchOpen);
   const isPaperCutRef = useRef(false);
+  const lastCutLineIndexRef = useRef(-1);
 
   useEffect(() => {
     isHatchOpenRef.current = isHatchOpen;
@@ -123,15 +124,16 @@ export const Sunmi3DPrinter: React.FC<Sunmi3DPrinterProps> = ({
     const marginPx = width === '58mm' ? 84 : 104;
     const maxPrintableWidth = canvasWidth - marginPx * 2;
 
-    const visibleLines = data.lines.slice(0, printedLineCount);
+    const startIdx = lastCutLineIndexRef.current >= 0 ? lastCutLineIndexRef.current + 1 : 0;
+    const activeLines = data.lines.slice(startIdx, printedLineCount);
 
     // First Pass: Calculate exact required content height so top/bottom margins are identical to side margins
     let contentHeightPx = marginPx; // Top margin
 
-    if (visibleLines.length === 0) {
+    if (activeLines.length === 0) {
       contentHeightPx += 180; // Default clean blank header when unprinted
     } else {
-      visibleLines.forEach((line) => {
+      activeLines.forEach((line) => {
         const isDoubleHeight = line.spans.some((s) => s.style.doubleHeight || s.style.scaleY > 1);
         const isDoubleWidth = line.spans.some((s) => s.style.doubleWidth || s.style.scaleX > 1);
 
@@ -166,16 +168,18 @@ export const Sunmi3DPrinter: React.FC<Sunmi3DPrinterProps> = ({
       ctx.fillRect(0, y, canvasWidth, 1);
     }
 
-    if (visibleLines.length === 0) return;
+    if (activeLines.length === 0) return;
 
     // Draw visible parsed receipt lines starting cleanly at top margin
     let currentY = marginPx;
 
-    visibleLines.forEach((line) => {
+    activeLines.forEach((line) => {
       ctx.save();
 
       const firstSpan = line.spans[0];
-      const isReverse = firstSpan?.style.reverse;
+      const isUnderline = line.spans.some((s) => s.style.underline);
+      const isRed = line.spans.some((s) => s.style.color === 'red');
+
       const isDoubleHeight = line.spans.some((s) => s.style.doubleHeight || s.style.scaleY > 1);
       const isDoubleWidth = line.spans.some((s) => s.style.doubleWidth || s.style.scaleX > 1);
 
@@ -186,41 +190,50 @@ export const Sunmi3DPrinter: React.FC<Sunmi3DPrinterProps> = ({
 
       currentY += fontSize * 0.85;
 
-      // Horizontal alignment cleanly constrained within side margins
-      let x = canvasWidth / 2;
-      ctx.textAlign = 'center';
-      if (line.align === Alignment.LEFT) {
-        x = marginPx;
+      if (line.spans.length > 0) {
+        let totalLineWidth = 0;
+        const measuredSpans = line.spans.map((span) => {
+          const isSpanBold = span.style.bold || span.style.doubleWidth || span.style.scaleX > 1;
+          const isSpanItalic = span.style.italic;
+          const fontItalic = isSpanItalic ? 'italic ' : '';
+          const fontWeight = isSpanBold ? '700 ' : '400 ';
+          ctx.font = `${fontItalic}${fontWeight}${fontSize}px "Courier New", Courier, monospace`;
+          const w = ctx.measureText(span.text).width;
+          totalLineWidth += w;
+          return { span, width: w, font: ctx.font };
+        });
+
+        let startX = marginPx;
+        if (line.align === Alignment.CENTER) {
+          startX = Math.max(marginPx, (canvasWidth - totalLineWidth) / 2);
+        } else if (line.align === Alignment.RIGHT) {
+          startX = Math.max(marginPx, canvasWidth - marginPx - totalLineWidth);
+        }
+
         ctx.textAlign = 'left';
-      } else if (line.align === Alignment.RIGHT) {
-        x = canvasWidth - marginPx;
-        ctx.textAlign = 'right';
+        let currentX = startX;
+
+        measuredSpans.forEach(({ span, width: spanW, font }) => {
+          ctx.font = font;
+          if (span.style.reverse) {
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(currentX, currentY - fontSize * 0.82, spanW + 2, fontSize * 1.15);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(span.text, currentX + 1, currentY);
+          } else if (span.style.color === 'red') {
+            ctx.fillStyle = '#b91c1c';
+            ctx.fillText(span.text, currentX, currentY);
+          } else {
+            ctx.fillStyle = '#000000';
+            ctx.fillText(span.text, currentX, currentY);
+          }
+          currentX += spanW;
+        });
       }
 
-      const fullLineText = line.spans.map((s) => s.text).join('');
-
-      // Font configuration: Crisp monospaced thermal print
-      const fontStyle = '700 ';
-      ctx.font = `${fontStyle}${fontSize}px "Courier New", Courier, monospace`;
-
-      if (isReverse) {
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(marginPx, currentY - fontSize * 0.85, maxPrintableWidth, fontSize * 1.25);
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(fullLineText, x, currentY, maxPrintableWidth);
-      } else if (firstSpan?.style.color === 'red') {
-        ctx.fillStyle = '#b91c1c';
-        ctx.strokeStyle = '#b91c1c';
-        ctx.lineWidth = 1.0;
-        ctx.fillText(fullLineText, x, currentY, maxPrintableWidth);
-        ctx.strokeText(fullLineText, x, currentY, maxPrintableWidth);
-      } else {
-        // Deep jet black text with crisp stroke outline for maximum thermal density
-        ctx.fillStyle = '#000000';
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 1.0;
-        ctx.fillText(fullLineText, x, currentY, maxPrintableWidth);
-        ctx.strokeText(fullLineText, x, currentY, maxPrintableWidth);
+      if (isUnderline) {
+        ctx.fillStyle = isRed ? '#b91c1c' : '#000000';
+        ctx.fillRect(marginPx, currentY + 6, maxPrintableWidth, 3);
       }
 
       currentY += fontSize * 0.5;
@@ -739,6 +752,7 @@ export const Sunmi3DPrinter: React.FC<Sunmi3DPrinterProps> = ({
     // If starting a fresh print sequence from line 0, reset paper cut state & clear old landed papers
     if (printedLineCount === 0) {
       isPaperCutRef.current = false;
+      lastCutLineIndexRef.current = -1;
       fallingPapersRef.current.forEach((item) => {
         if (sceneRef.current) sceneRef.current.remove(item.mesh);
         item.mesh.geometry.dispose();
@@ -878,8 +892,9 @@ export const Sunmi3DPrinter: React.FC<Sunmi3DPrinterProps> = ({
 
     sourceMesh.position.set(0, slotY + stubLength / 2, slotZ + 0.05);
 
-    // Set cut state so length update effect doesn't overwrite it
-    isPaperCutRef.current = true;
+    // Set cut line index so next printed lines start on a new feed
+    lastCutLineIndexRef.current = Math.max(0, printedLineCount - 1);
+    isPaperCutRef.current = false;
 
     // Call external trigger cut callback if provided
     if (onTriggerCut) {
@@ -889,7 +904,7 @@ export const Sunmi3DPrinter: React.FC<Sunmi3DPrinterProps> = ({
 
   // Trigger Cutter Blade Animation from parent prop change
   useEffect(() => {
-    if (activeCutAnimation && !isPaperCutRef.current) {
+    if (activeCutAnimation) {
       execute3DCut();
     }
   }, [activeCutAnimation]);

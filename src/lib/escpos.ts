@@ -12,6 +12,7 @@ export type PrintColor = 'black' | 'red';
 
 export interface TextStyle {
   bold: boolean;
+  italic: boolean;
   underline: boolean;
   doubleHeight: boolean;
   doubleWidth: boolean;
@@ -58,6 +59,7 @@ export interface ReceiptData {
 
 const DEFAULT_STYLE: TextStyle = {
   bold: false,
+  italic: false,
   underline: false,
   doubleHeight: false,
   doubleWidth: false,
@@ -74,6 +76,8 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
   let currentStyle: TextStyle = { ...DEFAULT_STYLE };
   let currentText = '';
   let hasCut = false;
+  let pendingBeep = false;
+  let pendingDrawer = false;
   const controlEvents: ControlEvent[] = [];
 
   let redSpanCount = 0;
@@ -100,8 +104,13 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
     }
   };
 
-  const flushLine = (hasCutHere = false, hasBeepHere = false, hasDrawerHere = false) => {
+  const flushLine = (hasCutHere = false, forceBeep = false, forceDrawer = false) => {
     flushSpan();
+    const hasBeepHere = forceBeep || pendingBeep;
+    const hasDrawerHere = forceDrawer || pendingDrawer;
+    pendingBeep = false;
+    pendingDrawer = false;
+
     lines.push({
       id: `line-${lines.length}-${Math.random().toString(36).substring(2, 7)}`,
       spans: [...currentLineSpans],
@@ -117,7 +126,13 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
   while (i < data.length) {
     const byte = data[i];
 
-    if (byte === 0x1B) { // ESC
+    if (byte === 0x07) { // BEL (Buzzer sound)
+      flushSpan();
+      beepCount++;
+      pendingBeep = true;
+      controlEvents.push({ type: 'beep', label: 'Buzzer Sound (BEL \\x07)', lineIndex: currentLineIndex() });
+      i++;
+    } else if (byte === 0x1B) { // ESC
       i++;
       if (i >= data.length) break;
       const next = data[i];
@@ -140,9 +155,24 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
         const val = (data[i + 1] & 1) === 1;
         currentStyle.bold = val;
         i += 2;
+      } else if (next === 0x34) { // ESC 4 (Italic ON)
+        flushSpan();
+        currentStyle.italic = true;
+        i++;
+      } else if (next === 0x35) { // ESC 5 (Italic OFF)
+        flushSpan();
+        currentStyle.italic = false;
+        i++;
       } else if (next === 0x2D) { // ESC - (Underline)
         flushSpan();
-        currentStyle.underline = (data[i + 1] ?? 0) > 0;
+        const param = data[i + 1] ?? 0;
+        currentStyle.underline = param === 1 || param === 2 || param === 49 || param === 50;
+        i += 2;
+      } else if (next === 0x7B) { // ESC { (Reverse Mode)
+        flushSpan();
+        const param = data[i + 1] ?? 0;
+        const val = param === 1 || param === 49 || (param > 0 && param !== 48);
+        currentStyle.reverse = val;
         i += 2;
       } else if (next === 0x21) { // ESC ! (Print mode bitmask)
         flushSpan();
@@ -170,10 +200,12 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
       } else if (next === 0x42) { // ESC B (Buzzer sound)
         flushSpan();
         beepCount++;
+        pendingBeep = true;
         controlEvents.push({ type: 'beep', label: 'Buzzer Sound (ESC B)', lineIndex: currentLineIndex() });
         i += 3; // ESC B n t
       } else if (next === 0x70) { // ESC p (Pulse / Cash drawer)
         flushSpan();
+        pendingDrawer = true;
         controlEvents.push({ type: 'drawer', label: 'Open Cash Drawer (ESC p)', lineIndex: currentLineIndex() });
         i += 4; // ESC p m t1 t2
       } else {
@@ -201,7 +233,8 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
         i += 2; // GS V m
       } else if (next === 0x42) { // GS B (White/Black Reverse Mode)
         flushSpan();
-        const val = (data[i + 1] ?? 0) > 0;
+        const param = data[i + 1] ?? 0;
+        const val = param === 1 || param === 49 || (param > 0 && param !== 48);
         if (currentStyle.reverse !== val) {
           currentStyle.reverse = val;
           controlEvents.push({ 

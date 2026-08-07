@@ -58,13 +58,23 @@ export function renderReceiptToHtml(data: ReceiptData, options: RenderOptions = 
         })
         .join('');
 
+      let beepDivider = '';
+      if (line.hasBeepHere) {
+        beepDivider = `<div style='margin: 10px 0; border-top: 1px dashed #f59e0b; position: relative; text-align: center;'><span style='position: relative; top: -10px; background: ${bgColor}; padding: 0 8px; font-size: 9px; color: #d97706; font-weight: bold; border: 1px solid #fde68a; border-radius: 10px;'>🔔 POS BUZZER BEEP (ESC B)</span></div>`;
+      }
+
+      let drawerDivider = '';
+      if (line.hasDrawerHere) {
+        drawerDivider = `<div style='margin: 10px 0; border-top: 1px dashed #f97316; position: relative; text-align: center;'><span style='position: relative; top: -10px; background: ${bgColor}; padding: 0 8px; font-size: 9px; color: #ea580c; font-weight: bold; border: 1px solid #fed7aa; border-radius: 10px;'>⚡ CASH DRAWER KICK (ESC p)</span></div>`;
+      }
+
       let cutDivider = '';
       if (line.hasCutHere) {
         cutDivider = `<div style='margin: 14px 0; border-top: 2px dashed #ef4444; position: relative; text-align: center;'><span style='position: relative; top: -10px; background: ${bgColor}; padding: 0 8px; font-size: 10px; color: #ef4444; font-weight: bold; border: 1px solid #fca5a5; border-radius: 10px;'>✂ PAPER CUT</span></div>`;
       }
 
       const lineContent = spansHtml.length > 0 ? spansHtml : '&#160;';
-      return `<div style='width: 100%; min-height: 1.25em; ${alignCss} margin: 1px 0; white-space: pre-wrap; word-break: break-all; font-family: "Courier New", Courier, "JetBrains Mono", monospace;'>${lineContent}</div>${cutDivider}`;
+      return `<div style='width: 100%; min-height: 1.25em; ${alignCss} margin: 1px 0; white-space: pre-wrap; word-break: break-all; font-family: "Courier New", Courier, "JetBrains Mono", monospace;'>${lineContent}</div>${beepDivider}${drawerDivider}${cutDivider}`;
     })
     .join('\n');
 

@@ -195,7 +195,7 @@ export default function App() {
         lines: [],
         hasCut: false,
         controlEvents: [],
-        stats: { totalChars: 0, redSpanCount: 0, reverseSpanCount: 0, boldSpanCount: 0, cutCount: 0, beepCount: 0 },
+        stats: { totalChars: 0, redSpanCount: 0, reverseSpanCount: 0, boldSpanCount: 0, cutCount: 0, beepCount: 0, drawerCount: 0 },
       };
     }
   }, [inputValue, inputMode]);

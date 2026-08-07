@@ -210,6 +210,8 @@ export const openApiSpec = {
             properties: {
               totalChars: { type: 'number', example: 124 },
               cutCount: { type: 'number', example: 1 },
+              beepCount: { type: 'number', example: 1 },
+              drawerCount: { type: 'number', example: 1 },
               reverseSpanCount: { type: 'number', example: 1 },
               redSpanCount: { type: 'number', example: 0 },
             },

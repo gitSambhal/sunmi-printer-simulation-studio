@@ -54,6 +54,7 @@ export interface ReceiptData {
     boldSpanCount: number;
     cutCount: number;
     beepCount: number;
+    drawerCount: number;
   };
 }
 
@@ -86,6 +87,7 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
   let boldSpanCount = 0;
   let cutCount = 0;
   let beepCount = 0;
+  let drawerCount = 0;
   let totalChars = 0;
 
   const currentLineIndex = () => lines.length;
@@ -215,6 +217,7 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
         i += 3; // ESC B n t
       } else if (next === 0x70) { // ESC p (Pulse / Cash drawer)
         flushSpan();
+        drawerCount++;
         pendingDrawer = true;
         controlEvents.push({ type: 'drawer', label: 'Open Cash Drawer (ESC p)', lineIndex: currentLineIndex() });
         i += 4; // ESC p m t1 t2
@@ -291,8 +294,8 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
     }
   }
 
-  // Flush remaining text
-  if (currentText.length > 0 || currentLineSpans.length > 0) {
+  // Flush remaining text or pending hardware control triggers
+  if (currentText.length > 0 || currentLineSpans.length > 0 || pendingDrawer || pendingBeep) {
     flushLine();
   }
 
@@ -307,6 +310,7 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
       boldSpanCount,
       cutCount,
       beepCount,
+      drawerCount,
     },
   };
 }

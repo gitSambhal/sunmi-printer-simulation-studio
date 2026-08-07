@@ -4,7 +4,7 @@ import {
   Play, RotateCcw, Volume2, VolumeX, Scissors, Sparkles, 
   AlertCircle, Bell, DollarSign, CheckCircle2, Download, 
   Image as ImageIcon, Code, Cpu, ChevronDown, Check, Printer, Gauge,
-  Box, FileText
+  Box, FileText, Zap
 } from 'lucide-react';
 import { toPng, toSvg } from 'html-to-image';
 import { ReceiptData, Alignment } from '../lib/escpos';
@@ -448,7 +448,7 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
             initial={{ opacity: 0, y: -20, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -20, scale: 0.9 }}
-            className="absolute top-16 z-30 bg-amber-500 text-white px-4 py-2 rounded-full shadow-lg text-xs font-bold flex items-center gap-2"
+            className="absolute top-18 z-50 bg-amber-500 text-white px-5 py-2.5 rounded-full shadow-2xl border border-amber-400/50 text-xs font-bold flex items-center gap-2 pointer-events-none"
           >
             <Bell size={16} className="animate-bounce" />
             <span>POS Buzzer Sound Triggered</span>
@@ -459,7 +459,7 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
             initial={{ opacity: 0, y: -20, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -20, scale: 0.9 }}
-            className="absolute top-16 z-30 bg-emerald-600 text-white px-4 py-2 rounded-full shadow-lg text-xs font-bold flex items-center gap-2"
+            className="absolute top-18 z-50 bg-emerald-600 text-white px-5 py-2.5 rounded-full shadow-2xl border border-emerald-500/50 text-xs font-bold flex items-center gap-2 pointer-events-none"
           >
             <DollarSign size={16} className="animate-pulse" />
             <span>Cash Drawer Pulse Signal Sent</span>
@@ -645,6 +645,28 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
                         })
                       )}
                     </div>
+
+                    {/* Beep Line Visual Indicator */}
+                    {line.hasBeepHere && (
+                      <div className="my-2 relative flex items-center justify-center">
+                        <div className="w-full border-t border-dashed border-amber-400 dark:border-amber-500/80" />
+                        <span className="absolute bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 text-[9px] font-bold px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800 flex items-center gap-1 shadow-xs">
+                          <Bell size={10} />
+                          POS BUZZER BEEP COMMAND (ESC B / BEL)
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Drawer Line Visual Indicator */}
+                    {line.hasDrawerHere && (
+                      <div className="my-2 relative flex items-center justify-center">
+                        <div className="w-full border-t border-dashed border-orange-400 dark:border-orange-500/80" />
+                        <span className="absolute bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-300 text-[9px] font-bold px-2 py-0.5 rounded-full border border-orange-200 dark:border-orange-800 flex items-center gap-1 shadow-xs">
+                          <Zap size={10} className="text-orange-500 fill-orange-500" />
+                          CASH DRAWER KICK PULSE (ESC p)
+                        </span>
+                      </div>
+                    )}
 
                     {/* Cut Line Visual Indicator */}
                     {line.hasCutHere && (

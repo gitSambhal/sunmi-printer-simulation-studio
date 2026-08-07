@@ -11,13 +11,40 @@ An interactive Sunmi thermal printer preview simulator and high-performance ESC/
 - **E-Commerce & POS Webhook Integration**: Dedicated `/api/webhook` endpoint converts JSON orders (from Shopify, Stripe, Square, or custom POS) directly into formatted thermal receipts.
 - **Interactive Live API Testing Studio**: Built-in REST API playground with custom header controls, real-time response latency timer in milliseconds, JSON/SVG response viewers, and outbound webhook delivery testing.
 - **Full ESC/POS Command Parsing**:
-  - **Text Formatting**: Bold (`ESC E`), Underline (`ESC -`), Double Width/Height (`GS !`), Reverse Mode / Inverted White-on-Black (`GS B`, `ESC {`), Red Print (`ESC r`).
-  - **Alignment**: Left, Center, Right (`ESC a`).
-  - **Barcodes**: JAN13 (EAN13), JAN8 (EAN8), CODE39, ITF, CODABAR, CODE93, CODE128 (`GS k`).
-  - **QR Codes**: Model 2 QR Code generation (`GS ( k`).
-  - **Hardware Controls**: Automatic paper cut detection (`GS V`), cash drawer kick pulse triggers (`ESC p`), and buzzer alerts (`ESC B`).
+  - **Text Formatting**: Bold (`ESC E`), Underline (`ESC -`), Italics (`ESC 4`/`ESC 5`), Double Width/Height (`GS !`, `ESC !`), Reverse Mode / Inverted White-on-Black (`GS B`, `ESC {`), Red/Black Dual-Color Print (`ESC r`).
+  - **Alignment**: Left (`ESC a 0`), Center (`ESC a 1`), Right (`ESC a 2`).
+  - **Hardware Controls**: Automatic paper cut detection (`GS V`), cash drawer kick pulse triggers (`ESC p`), buzzer alerts (`ESC B`, `BEL`), and printer reset (`ESC @`).
 - **REST API & SVG Engine**: Generates clean HTML, structured JSON metadata, and standalone vector SVG receipts.
 - **Client & Server Unified Architecture**: Works both as an Express server backend for automation tools (`curl`, Postman, Python, Node.js) and client-side (Service Worker + local fetch interceptor) for standalone browser deployment.
+
+---
+
+## ⚡ Quick Insert Commands & Alignment
+
+The editor includes quick-insert chips above the input canvas:
+- **Align Left**: `\u001ba\u0000` (`ESC a 0`)
+- **Align Center**: `\u001ba\u0001` (`ESC a 1`)
+- **Align Right**: `\u001ba\u0002` (`ESC a 2`)
+- **Paper Cut**: `\u001dV\u0000` (`GS V 0`)
+- **Buzzer Beep**: `\u001bB\u0001\u0001` (`ESC B 1 1`)
+- **Drawer Pulse**: `\u001bp\u0000\u0019\u00ff` (`ESC p 0 25 255`)
+- **Red / Black Color**: `\u001br\u0001` (`ESC r 1`) / `\u001br\u0000` (`ESC r 0`)
+- **Bold / Italic / Reverse Mode**: `\u001bE\u0001`, `\u001b4`, `\u001dB\u0001`
+
+---
+
+## 🔔 Testing Hardware Controls (Cut, Buzzer, Cash Drawer)
+
+You can test hardware control signals in four ways:
+
+1. **Quick Insert Chips**: Click **Align Left**, **Align Center**, **Align Right**, **Paper Cut**, **Buzzer Beep**, or **Drawer Pulse** chips in the editor to inject ESC/POS codes directly at cursor position.
+2. **Top Action Toolbar Buttons**:
+   - **Simulate** (`Play` icon): Plays a realistic line-by-line print feed with audio ticks and triggers hardware alerts in real time as commands are executed.
+   - **Paper Cut** (`Scissors` icon): Fires the guillotine blade sound effect and cuts paper (in 3D view, drops a detached paper slip onto the floor).
+   - **Buzzer Beep** (`Bell` icon): Plays POS buzzer audio beep sound and displays a floating alert toast.
+   - **Cash Drawer Kick** (`DollarSign` icon): Triggers cash drawer pulse solenoid click audio sound and displays a floating alert toast.
+3. **Interactive 3D Sunmi Printer**: In 3D mode, click **Cut Paper** or use camera presets (**Front**, **Cutter Slot**, **Floor Paper**) to inspect paper cuts and mechanical blade movements.
+4. **API Requests**: Send payloads containing `\x1dV\x00` (cut), `\x1bB\x01\x01` (buzzer), or `\x1bp\x00\x19\xff` (drawer) to `/api/render-receipt`. The response `stats` object reports detected hardware events (`cutCount`, `hasBeep`, `hasDrawer`).
 
 ---
 

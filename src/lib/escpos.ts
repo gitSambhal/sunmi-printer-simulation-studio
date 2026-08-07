@@ -78,6 +78,7 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
   let hasCut = false;
   let pendingBeep = false;
   let pendingDrawer = false;
+  let justFlushedOnAlignChange = false;
   const controlEvents: ControlEvent[] = [];
 
   let redSpanCount = 0;
@@ -146,9 +147,18 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
       } else if (next === 0x61) { // ESC a (Alignment)
         flushSpan();
         const n = data[i + 1] ?? 0;
-        if (n === 0 || n === 48) currentLineAlign = Alignment.LEFT;
-        else if (n === 1 || n === 49) currentLineAlign = Alignment.CENTER;
-        else if (n === 2 || n === 50) currentLineAlign = Alignment.RIGHT;
+        let newAlign = currentLineAlign;
+        if (n === 0 || n === 48) newAlign = Alignment.LEFT;
+        else if (n === 1 || n === 49) newAlign = Alignment.CENTER;
+        else if (n === 2 || n === 50) newAlign = Alignment.RIGHT;
+
+        if (newAlign !== currentLineAlign) {
+          if (currentText.length > 0 || currentLineSpans.length > 0) {
+            flushLine();
+            justFlushedOnAlignChange = true;
+          }
+          currentLineAlign = newAlign;
+        }
         i += 2;
       } else if (next === 0x45) { // ESC E (Bold)
         flushSpan();
@@ -253,12 +263,18 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
         i++;
       }
     } else if (byte === 0x0A) { // LF (Line feed)
-      flushLine();
+      if (justFlushedOnAlignChange && currentText.length === 0 && currentLineSpans.length === 0) {
+        // Skip duplicate blank line right after auto-flushed alignment change
+      } else {
+        flushLine();
+      }
+      justFlushedOnAlignChange = false;
       i++;
     } else if (byte === 0x0D) { // CR
       i++;
     } else {
       // Regular character - parse string
+      justFlushedOnAlignChange = false;
       let start = i;
       while (
         i < data.length && 

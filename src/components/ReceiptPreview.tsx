@@ -303,6 +303,19 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
 
             <button
               onClick={() => {
+                printerAudio.resume();
+                printerAudio.playDrawerSound();
+                setActiveDrawerAlert('ESC p / Cash Drawer Kick');
+                setTimeout(() => setActiveDrawerAlert(null), 1800);
+              }}
+              className="p-1 text-neutral-600 hover:text-emerald-600 dark:text-neutral-300 dark:hover:text-emerald-400 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+              title="Test Cash Drawer Pulse Signal (ESC p)"
+            >
+              <DollarSign size={14} />
+            </button>
+
+            <button
+              onClick={() => {
                 const newMute = !isMuted;
                 setIsMuted(newMute);
                 printerAudio.setMuted(newMute);

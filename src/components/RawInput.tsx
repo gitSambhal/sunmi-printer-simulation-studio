@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Terminal, FileText, Trash2, Clipboard, Sparkles, Code2, Scissors, Bell, Flame, Palette, WrapText } from 'lucide-react';
+import { Terminal, FileText, Trash2, Clipboard, Sparkles, Code2, Scissors, Bell, Flame, Palette, WrapText, AlignLeft, AlignCenter, AlignRight, Zap, Columns } from 'lucide-react';
 import { copyToClipboard } from '../lib/clipboard';
 
 interface RawInputProps {
@@ -47,8 +47,13 @@ export const RawInput: React.FC<RawInputProps> = ({
   };
 
   const commandChips = [
+    { label: 'Align Left', code: '\\u001ba\\u0000', icon: AlignLeft, color: 'hover:border-emerald-500 hover:text-emerald-500' },
+    { label: 'Align Center', code: '\\u001ba\\u0001', icon: AlignCenter, color: 'hover:border-emerald-500 hover:text-emerald-500' },
+    { label: 'Align Right', code: '\\u001ba\\u0002', icon: AlignRight, color: 'hover:border-emerald-500 hover:text-emerald-500' },
+    { label: '3-Col Line (L C R)', code: 'Left Text      Center      Right Text\\n', icon: Columns, color: 'hover:border-sky-500 hover:text-sky-500' },
     { label: 'Paper Cut', code: '\\u001dV\\u0000', icon: Scissors, color: 'hover:border-blue-500 hover:text-blue-500' },
     { label: 'Buzzer Beep', code: '\\u001bB\\u0001\\u0001', icon: Bell, color: 'hover:border-yellow-500 hover:text-yellow-500' },
+    { label: 'Drawer Pulse', code: '\\u001bp\\u0000\\u0019\\u00ff', icon: Zap, color: 'hover:border-orange-500 hover:text-orange-500' },
     { label: 'Red Print', code: '\\u001br\\u0001', icon: Flame, color: 'hover:border-red-500 hover:text-red-500' },
     { label: 'Black Print', code: '\\u001br\\u0000', icon: Palette, color: 'hover:border-neutral-500' },
     { label: 'Bold On', code: '\\u001bE\\u0001', icon: Code2, color: 'hover:border-amber-500 hover:text-amber-500' },

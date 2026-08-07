@@ -2,7 +2,7 @@ export const openApiSpec = {
   openapi: '3.0.3',
   info: {
     title: 'ESC/POS Thermal Receipt Generator & Visualizer API',
-    description: 'High-performance ESC/POS thermal receipt rendering engine. Parses raw binary ESC/POS escape sequences, text formatting, barcodes, QR codes, and reverse printing mode into HTML, SVG, and structured JSON.',
+    description: 'High-performance ESC/POS thermal receipt rendering engine. Parses raw binary ESC/POS escape sequences, text formatting, and reverse printing mode into HTML, SVG, and structured JSON.',
     version: '2.5.0',
     contact: {
       name: 'Suhail Akhtar',

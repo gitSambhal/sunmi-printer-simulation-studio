@@ -12,7 +12,6 @@ interface Sunmi3DPrinterProps {
   activeCutAnimation: boolean;
   requestedCameraPreset?: 'macro' | '3/4' | 'front' | 'top' | 'floor';
   onTriggerCut?: () => void;
-  onStartPrint?: () => void;
 }
 
 interface FallingPaper {
@@ -35,7 +34,6 @@ export const Sunmi3DPrinter: React.FC<Sunmi3DPrinterProps> = ({
   activeCutAnimation,
   requestedCameraPreset,
   onTriggerCut,
-  onStartPrint,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const textureCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -1078,19 +1076,8 @@ export const Sunmi3DPrinter: React.FC<Sunmi3DPrinterProps> = ({
           </div>
         </div>
 
-        {/* Right Toolbar Controls Group: Live Status & Reprint Feed */}
+        {/* Right Toolbar Controls Group: Live Status */}
         <div className="flex items-center gap-2 pointer-events-auto">
-          {onStartPrint && (
-            <button
-              onClick={onStartPrint}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-xs font-bold shadow-md transition-all active:scale-95"
-              title="Start or restart thermal print feed"
-            >
-              <Play size={13} fill="currentColor" />
-              <span className="hidden sm:inline">Reprint Feed</span>
-            </button>
-          )}
-
           <div className="flex items-center gap-2 bg-neutral-900/90 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-neutral-800 text-xs font-mono shadow-xl">
             <span className={`w-2.5 h-2.5 rounded-full ${isPrinting ? 'bg-amber-500 animate-ping' : 'bg-emerald-500'}`} />
             <span className="text-neutral-200 font-bold uppercase tracking-wider hidden sm:inline">Sunmi POS 3D</span>

@@ -277,7 +277,7 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
               title="Simulate thermal feed print animation"
             >
               <Play size={13} fill="currentColor" />
-              <span>Simulate</span>
+              <span>Simulate Feed</span>
             </button>
 
             <button
@@ -478,7 +478,6 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
             activeCutAnimation={activeCutAnimation}
             requestedCameraPreset={requestedCameraPreset}
             onTriggerCut={triggerCutEffect}
-            onStartPrint={handleStartPrintAnimation}
           />
         </div>
       ) : (

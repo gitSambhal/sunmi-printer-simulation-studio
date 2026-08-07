@@ -264,7 +264,6 @@ async function handleApiRequest(request: Request): Promise<Response> {
           svg,
           stats: receiptData.stats,
           controlEvents: receiptData.controlEvents,
-          engine: 'Service Worker Client-Side API',
         }),
         {
           status: 200,

@@ -49,9 +49,6 @@ export interface ReceiptData {
   controlEvents: ControlEvent[];
   stats: {
     totalChars: number;
-    redSpanCount: number;
-    reverseSpanCount: number;
-    boldSpanCount: number;
     cutCount: number;
     beepCount: number;
     drawerCount: number;
@@ -305,9 +302,6 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
     controlEvents,
     stats: {
       totalChars,
-      redSpanCount,
-      reverseSpanCount,
-      boldSpanCount,
       cutCount,
       beepCount,
       drawerCount,

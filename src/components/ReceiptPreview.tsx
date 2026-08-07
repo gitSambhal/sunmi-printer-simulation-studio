@@ -37,6 +37,27 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [copiedHtml, setCopiedHtml] = useState(false);
   const [isApiModalOpen, setIsApiModalOpen] = useState(false);
+  const [apiModalInitialTab, setApiModalInitialTab] = useState<'playground' | 'swagger' | 'webhook' | 'snippets'>('playground');
+
+  // Route check for /docs or /api/docs (e.g. on Netlify static hosting)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const path = window.location.pathname.toLowerCase();
+    if (path.startsWith('/docs') || path.startsWith('/api/docs')) {
+      setApiModalInitialTab('swagger');
+      setIsApiModalOpen(true);
+    }
+  }, []);
+
+  const handleCloseApiModal = () => {
+    setIsApiModalOpen(false);
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname.toLowerCase();
+      if (path.startsWith('/docs') || path.startsWith('/api/docs')) {
+        window.history.pushState({}, '', '/');
+      }
+    }
+  };
 
   const containerRef = useRef<HTMLDivElement>(null);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
@@ -703,9 +724,10 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
       {isApiModalOpen && (
         <ApiModal
           isOpen={isApiModalOpen}
-          onClose={() => setIsApiModalOpen(false)}
+          onClose={handleCloseApiModal}
           rawString={rawString}
           width={width}
+          initialTab={apiModalInitialTab}
         />
       )}
     </div>

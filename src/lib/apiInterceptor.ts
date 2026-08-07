@@ -1,5 +1,6 @@
 import { parseEscPos, escapedStringToBytes, textToBytes } from './escpos';
 import { renderReceiptToHtml, renderReceiptToSvg } from './renderHtml';
+import { openApiSpec, getSwaggerHtml } from './openapi';
 
 function parsePayloadToReceipt(rawInput: string, mode: string = 'raw') {
   let bytes: Uint8Array;
@@ -19,8 +20,14 @@ export function registerApiInterceptor() {
   const customFetch = async function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const urlStr = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
 
-    // Only intercept local relative /api/ or /render- routes
-    if (urlStr.includes('/api/') || urlStr.includes('/render-receipt') || urlStr.includes('/render-image')) {
+    // Only intercept local relative /api/, /render-, /docs, or /openapi.json routes
+    if (
+      urlStr.includes('/api/') ||
+      urlStr.includes('/render-receipt') ||
+      urlStr.includes('/render-image') ||
+      urlStr.includes('/docs') ||
+      urlStr.includes('openapi.json')
+    ) {
       try {
         const urlObj = new URL(urlStr, window.location.origin);
         const pathname = urlObj.pathname;
@@ -39,6 +46,22 @@ export function registerApiInterceptor() {
               headers: { 'Content-Type': 'application/json' },
             }
           );
+        }
+
+        // Route: OpenAPI JSON spec
+        if (pathname.includes('openapi.json')) {
+          return new Response(JSON.stringify(openApiSpec, null, 2), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        // Route: Swagger UI Docs
+        if (pathname.endsWith('/api/docs') || pathname.endsWith('/docs') || pathname.endsWith('/docs/')) {
+          return new Response(getSwaggerHtml('/api/openapi.json'), {
+            status: 200,
+            headers: { 'Content-Type': 'text/html' },
+          });
         }
 
         // Extract params

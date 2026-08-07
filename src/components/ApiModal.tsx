@@ -24,20 +24,27 @@ import {
   Settings,
 } from 'lucide-react';
 import { copyToClipboard } from '../lib/clipboard';
-import { openApiSpec } from '../lib/openapi';
+import { openApiSpec, getSwaggerHtml } from '../lib/openapi';
 
 interface ApiModalProps {
   isOpen: boolean;
   onClose: () => void;
   rawString: string;
   width: '58mm' | '80mm';
+  initialTab?: MainTabType;
 }
 
 type MainTabType = 'playground' | 'swagger' | 'webhook' | 'snippets';
 type CodeTabType = 'curl_post' | 'curl_get' | 'get_image' | 'webhook_curl' | 'nodejs' | 'python' | 'n8n';
 
-export const ApiModal: React.FC<ApiModalProps> = ({ isOpen, onClose, rawString, width }) => {
-  const [mainTab, setMainTab] = useState<MainTabType>('playground');
+export const ApiModal: React.FC<ApiModalProps> = ({ isOpen, onClose, rawString, width, initialTab }) => {
+  const [mainTab, setMainTab] = useState<MainTabType>(initialTab || 'playground');
+
+  React.useEffect(() => {
+    if (initialTab) {
+      setMainTab(initialTab);
+    }
+  }, [initialTab]);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [codeTab, setCodeTab] = useState<CodeTabType>('curl_post');
   const [isWordWrapped, setIsWordWrapped] = useState<boolean>(false);
@@ -607,7 +614,7 @@ print("SVG Output:", data.get("svg"))`;
           {/* TAB 2: OPENAPI / SWAGGER UI */}
           {mainTab === 'swagger' && (
             <div className="space-y-5 animate-fadeIn">
-              <div className="flex items-center justify-between bg-neutral-900 border border-neutral-800 rounded-xl p-4 text-white">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-neutral-900 border border-neutral-800 rounded-xl p-4 text-white">
                 <div>
                   <h4 className="text-sm font-bold text-amber-400 flex items-center gap-2">
                     <BookOpen size={18} />
@@ -626,17 +633,25 @@ print("SVG Output:", data.get("svg"))`;
                     <Download size={14} />
                     <span>download openapi.json</span>
                   </button>
-
-                  <a
-                    href="/docs"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-lg transition-all flex items-center gap-1.5 shadow-md"
-                  >
-                    <span>Open Swagger UI</span>
-                    <ExternalLink size={14} />
-                  </a>
                 </div>
+              </div>
+
+              {/* Live Embedded Swagger UI Frame */}
+              <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-2xl">
+                <div className="px-4 py-2.5 bg-neutral-950 border-b border-neutral-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-bold text-amber-400">
+                    <Globe size={14} />
+                    <span>Interactive Swagger UI Explorer</span>
+                  </div>
+                  <span className="text-[11px] font-mono text-neutral-400 bg-neutral-800 px-2 py-0.5 rounded">
+                    OpenAPI 3.0.3
+                  </span>
+                </div>
+                <iframe
+                  title="Swagger UI API Documentation"
+                  srcDoc={getSwaggerHtml('/api/openapi.json')}
+                  className="w-full h-[600px] border-0 bg-slate-900"
+                />
               </div>
 
               {/* Endpoint Schema Table */}

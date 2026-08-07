@@ -354,8 +354,14 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   const request = event.request;
   const url = new URL(request.url);
 
-  // Intercept all /api/ or /render- requests in SW!
-  if (url.pathname.includes('/api/') || url.pathname.includes('/render-receipt') || url.pathname.includes('/render-image')) {
+  // Intercept all /api/, /render-, /docs, or /openapi.json requests in SW!
+  if (
+    url.pathname.includes('/api/') ||
+    url.pathname.includes('/render-receipt') ||
+    url.pathname.includes('/render-image') ||
+    url.pathname.includes('/docs') ||
+    url.pathname.includes('openapi.json')
+  ) {
     event.respondWith(handleApiRequest(request));
     return;
   }

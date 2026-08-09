@@ -152,6 +152,21 @@ Generates direct image output or JSON data URL suitable for `<img>` tags, PDF ex
 
 ---
 
+### 5. Sunmi Cloud APIs (Official Printer Integration)
+
+Organized under the **Sunmi Cloud APIs** collection in the Swagger UI (`/docs`), these endpoints mirror official Sunmi cloud thermal printer integrations for remote cloud printing, device management, and queue status checks:
+
+| Endpoint | Method | Description |
+| :--- | :--- | :--- |
+| `/v2/printer/open/open/device/pushContent` | `POST` | Pushes printing tasks directly to Sunmi cloud printers (`sn`, `trade_no`, `content`, `count`). Returns task metadata and visual receipt preview. |
+| `/v2/printer/open/open/device/bindShop` | `POST` | Binds a Sunmi printer serial number (`sn`) to a merchant shop ID (`shop_id`). |
+| `/v2/printer/open/open/device/unbindShop` | `POST` | Unbinds a Sunmi printer serial number (`sn`) from a shop ID. |
+| `/v2/printer/open/open/device/onlineStatus` | `POST` | Queries online status of device(s) (`sn`, `page_no`, `page_size`). |
+| `/v2/printer/open/open/device/clearPrintJob` | `POST` | Clears print queue cached in the cloud for a Sunmi printer device (`sn`). |
+| `/v2/printer/open/open/ticket/printStatus` | `POST` | Queries order printing completion status by trade order number (`trade_no`). |
+
+---
+
 ## 💻 Automation & cURL Examples
 
 ### cURL POST JSON Payload with Reverse Text & Cut
@@ -173,6 +188,18 @@ curl -X POST http://localhost:3000/api/webhook \
     "event": "order.created",
     "storeName": "Epoint Store",
     "items": [{ "name": "Latte", "qty": 1, "price": 4.50 }]
+  }'
+```
+
+### cURL Sunmi Push Content Cloud API
+```bash
+curl -X POST http://localhost:3000/v2/printer/open/open/device/pushContent \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sn": "N302LDY000353",
+    "trade_no": "3433135",
+    "content": "1b2130e58d97e59bbde8b685e5b882",
+    "count": 1
   }'
 ```
 

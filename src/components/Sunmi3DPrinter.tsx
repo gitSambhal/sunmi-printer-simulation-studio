@@ -866,6 +866,7 @@ export const Sunmi3DPrinter: React.FC<Sunmi3DPrinterProps> = ({
       rotZ: (Math.random() - 0.5) * 0.04,
       opacity: 1.0,
       age: 0,
+      isLanded: false,
     });
 
     // 3. Shorten remaining paper on printer slot to a fresh short stub

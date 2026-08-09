@@ -3,6 +3,15 @@ import path from 'path';
 import { parseEscPos, escapedStringToBytes, textToBytes } from './src/lib/escpos';
 import { renderReceiptToHtml, renderReceiptToSvg } from './src/lib/renderHtml';
 import { openApiSpec, getSwaggerHtml } from './src/lib/openapi';
+import {
+  handleSunmiBindShop,
+  handleSunmiUnbindShop,
+  handleSunmiOnlineStatus,
+  handleSunmiOnlineStatuses,
+  handleSunmiClearPrintJob,
+  handleSunmiPrintStatus,
+  handleSunmiPushContent,
+} from './src/lib/sunmiApi';
 
 export const app = express();
 
@@ -268,6 +277,77 @@ app.use('/render-receipt', handleRenderReceipt);
 
 app.use('/api/render-image', handleRenderImage);
 app.use('/render-image', handleRenderImage);
+
+// Sunmi Official Cloud Printer Mock Endpoints
+const sunmiBindShopHandler = (req: any, res: any) => {
+  const params = { ...req.query, ...(typeof req.body === 'object' ? req.body : {}) };
+  res.json(handleSunmiBindShop(params));
+};
+
+const sunmiUnbindShopHandler = (req: any, res: any) => {
+  const params = { ...req.query, ...(typeof req.body === 'object' ? req.body : {}) };
+  res.json(handleSunmiUnbindShop(params));
+};
+
+const sunmiOnlineStatusHandler = (req: any, res: any) => {
+  const snParam = req.params.sn;
+  const params = { ...req.query, ...(typeof req.body === 'object' ? req.body : {}) };
+  res.json(handleSunmiOnlineStatus(snParam, params));
+};
+
+const sunmiOnlineStatusesHandler = (req: any, res: any) => {
+  const params = { ...req.query, ...(typeof req.body === 'object' ? req.body : {}) };
+  res.json(handleSunmiOnlineStatuses(params));
+};
+
+const sunmiPrintStatusHandler = (req: any, res: any) => {
+  const tradeNoParam = req.params.tradeNo;
+  const params = { ...req.query, ...(typeof req.body === 'object' ? req.body : {}) };
+  res.json(handleSunmiPrintStatus(tradeNoParam, params));
+};
+
+const sunmiPushContentHandler = (req: any, res: any) => {
+  let bodyObj: any = {};
+  if (req.body && typeof req.body === 'object') {
+    bodyObj = req.body;
+  } else if (typeof req.body === 'string') {
+    try {
+      bodyObj = JSON.parse(req.body);
+    } catch {
+      bodyObj = { content: req.body };
+    }
+  }
+  const params = { ...req.query, ...bodyObj };
+  res.json(handleSunmiPushContent(params));
+};
+
+const sunmiClearPrintJobHandler = (req: any, res: any) => {
+  const params = { ...req.query, ...(typeof req.body === 'object' ? req.body : {}) };
+  res.json(handleSunmiClearPrintJob(params));
+};
+
+// Bind Shop
+app.all(['/v2/printer/open/open/device/bindShop', '/api/sunmi/bind-shop', '/api/bind-shop', '/sunmi/bind-shop', '/v1/sunmi/bind-shop'], sunmiBindShopHandler);
+
+// Unbind Shop
+app.all(['/v2/printer/open/open/device/unbindShop', '/api/sunmi/unbind-shop', '/api/unbind-shop', '/sunmi/unbind-shop', '/v1/sunmi/unbind-shop'], sunmiUnbindShopHandler);
+
+// Online Status
+app.all(['/v2/printer/open/open/device/onlineStatus', '/api/sunmi/online-status/:sn', '/api/online-status/:sn', '/sunmi/online-status/:sn', '/v1/sunmi/online-status/:sn'], sunmiOnlineStatusHandler);
+app.all(['/api/sunmi/online-status', '/api/online-status', '/sunmi/online-status', '/v1/sunmi/online-status'], sunmiOnlineStatusHandler);
+
+// Online Statuses
+app.all(['/api/sunmi/online-statuses', '/api/online-statuses', '/sunmi/online-statuses', '/v1/sunmi/online-statuses'], sunmiOnlineStatusesHandler);
+
+// Clear Print Job
+app.all(['/v2/printer/open/open/device/clearPrintJob', '/api/sunmi/clear-print-job', '/api/clear-print-job', '/sunmi/clear-print-job'], sunmiClearPrintJobHandler);
+
+// Print Status
+app.all(['/v2/printer/open/open/ticket/printStatus', '/api/sunmi/print-status/:tradeNo', '/api/print-status/:tradeNo', '/sunmi/print-status/:tradeNo', '/v1/sunmi/print-status/:tradeNo'], sunmiPrintStatusHandler);
+app.all(['/api/sunmi/print-status', '/api/print-status', '/sunmi/print-status', '/v1/sunmi/print-status'], sunmiPrintStatusHandler);
+
+// Push Content (Primary endpoint with receipt data in return)
+app.all(['/v2/printer/open/open/device/pushContent', '/api/sunmi/push-content', '/api/push-content', '/sunmi/push-content', '/v1/sunmi/push-content'], sunmiPushContentHandler);
 
 async function startServer() {
   const PORT = 3000;

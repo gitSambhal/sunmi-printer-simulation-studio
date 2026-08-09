@@ -1,6 +1,15 @@
 import { parseEscPos, escapedStringToBytes, textToBytes } from './escpos';
 import { renderReceiptToHtml, renderReceiptToSvg } from './renderHtml';
 import { openApiSpec, getSwaggerHtml } from './openapi';
+import {
+  handleSunmiBindShop,
+  handleSunmiUnbindShop,
+  handleSunmiOnlineStatus,
+  handleSunmiOnlineStatuses,
+  handleSunmiClearPrintJob,
+  handleSunmiPrintStatus,
+  handleSunmiPushContent,
+} from './sunmiApi';
 
 function parsePayloadToReceipt(rawInput: string, mode: string = 'raw') {
   let bytes: Uint8Array;
@@ -20,9 +29,15 @@ export function registerApiInterceptor() {
   const customFetch = async function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const urlStr = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
 
-    // Only intercept local relative /api/, /render-, /docs, or /openapi.json routes
+    // Only intercept local relative /api/, /v2/printer/, /sunmi, /docs, /openapi.json, or Sunmi routes
     if (
       urlStr.includes('/api/') ||
+      urlStr.includes('/v2/printer/') ||
+      urlStr.includes('/sunmi') ||
+      urlStr.includes('bind') ||
+      urlStr.includes('online') ||
+      urlStr.includes('print') ||
+      urlStr.includes('push') ||
       urlStr.includes('/render-receipt') ||
       urlStr.includes('/render-image') ||
       urlStr.includes('/docs') ||
@@ -31,6 +46,7 @@ export function registerApiInterceptor() {
       try {
         const urlObj = new URL(urlStr, window.location.origin);
         const pathname = urlObj.pathname;
+        const lowerPath = pathname.toLowerCase();
 
         // Route 1: Health check
         if (pathname.endsWith('/api/health') || pathname.endsWith('/health')) {
@@ -38,7 +54,7 @@ export function registerApiInterceptor() {
             JSON.stringify({
               status: 'ok',
               service: 'ESC/POS Receipt Generator MSW Engine',
-              version: '2.0.0 (Client-Side Interceptor)',
+              version: '2.5.0 (Client-Side Interceptor)',
               serverlessMode: 'Client Browser MSW/SW Engine',
             }),
             {
@@ -61,6 +77,108 @@ export function registerApiInterceptor() {
           return new Response(getSwaggerHtml('/api/openapi.json'), {
             status: 200,
             headers: { 'Content-Type': 'text/html' },
+          });
+        }
+
+        // Sunmi Mock Endpoints in Fetch Interceptor
+        if (lowerPath.includes('/unbindshop') || lowerPath.includes('/unbind-shop')) {
+          let bodyObj: any = {};
+          if (init?.body) {
+            try { bodyObj = JSON.parse(init.body as string); } catch {}
+          }
+          const queryObj = Object.fromEntries(urlObj.searchParams.entries());
+          const params = { ...queryObj, ...bodyObj };
+          return new Response(JSON.stringify(handleSunmiUnbindShop(params)), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        if (lowerPath.includes('/bindshop') || lowerPath.includes('/bind-shop')) {
+          let bodyObj: any = {};
+          if (init?.body) {
+            try { bodyObj = JSON.parse(init.body as string); } catch {}
+          }
+          const queryObj = Object.fromEntries(urlObj.searchParams.entries());
+          const params = { ...queryObj, ...bodyObj };
+          return new Response(JSON.stringify(handleSunmiBindShop(params)), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        if (lowerPath.includes('/online-statuses')) {
+          let bodyObj: any = {};
+          if (init?.body) {
+            try { bodyObj = JSON.parse(init.body as string); } catch {}
+          }
+          const queryObj = Object.fromEntries(urlObj.searchParams.entries());
+          const params = { ...queryObj, ...bodyObj };
+          return new Response(JSON.stringify(handleSunmiOnlineStatuses(params)), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        if (lowerPath.includes('/onlinestatus') || lowerPath.includes('/online-status')) {
+          let bodyObj: any = {};
+          if (init?.body) {
+            try { bodyObj = JSON.parse(init.body as string); } catch {}
+          }
+          const queryObj = Object.fromEntries(urlObj.searchParams.entries());
+          const params = { ...queryObj, ...bodyObj };
+          const segments = pathname.split('/').filter(Boolean);
+          const lastSeg = segments[segments.length - 1];
+          const snInPath = lastSeg && lastSeg.toLowerCase() !== 'onlinestatus' && lastSeg.toLowerCase() !== 'online-status' ? lastSeg : undefined;
+          return new Response(JSON.stringify(handleSunmiOnlineStatus(snInPath, params)), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        if (lowerPath.includes('/clearprintjob') || lowerPath.includes('/clear-print-job')) {
+          let bodyObj: any = {};
+          if (init?.body) {
+            try { bodyObj = JSON.parse(init.body as string); } catch {}
+          }
+          const queryObj = Object.fromEntries(urlObj.searchParams.entries());
+          const params = { ...queryObj, ...bodyObj };
+          return new Response(JSON.stringify(handleSunmiClearPrintJob(params)), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        if (lowerPath.includes('/printstatus') || lowerPath.includes('/print-status')) {
+          let bodyObj: any = {};
+          if (init?.body) {
+            try { bodyObj = JSON.parse(init.body as string); } catch {}
+          }
+          const queryObj = Object.fromEntries(urlObj.searchParams.entries());
+          const params = { ...queryObj, ...bodyObj };
+          const segments = pathname.split('/').filter(Boolean);
+          const lastSeg = segments[segments.length - 1];
+          const tradeNoInPath = lastSeg && lastSeg.toLowerCase() !== 'printstatus' && lastSeg.toLowerCase() !== 'print-status' ? lastSeg : undefined;
+          return new Response(JSON.stringify(handleSunmiPrintStatus(tradeNoInPath, params)), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        if (lowerPath.includes('/pushcontent') || lowerPath.includes('/push-content')) {
+          let bodyObj: any = {};
+          if (init?.body) {
+            try {
+              bodyObj = JSON.parse(init.body as string);
+            } catch {
+              bodyObj = { content: init.body };
+            }
+          }
+          const queryObj = Object.fromEntries(urlObj.searchParams.entries());
+          const params = { ...queryObj, ...bodyObj };
+          return new Response(JSON.stringify(handleSunmiPushContent(params)), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
           });
         }
 

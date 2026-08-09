@@ -19,9 +19,20 @@ export const openApiSpec = {
       description: 'Local Express Server',
     },
   ],
+  tags: [
+    {
+      name: 'Core Engine',
+      description: 'Standard ESC/POS thermal receipt rendering, health check, and webhook conversion endpoints.',
+    },
+    {
+      name: 'Sunmi Cloud APIs',
+      description: 'Official Sunmi Cloud Thermal Printer integration APIs (Push Content, Bind/Unbind Shop, Online Status, Clear Print Queue, and Print Status).',
+    },
+  ],
   paths: {
     '/health': {
       get: {
+        tags: ['Core Engine'],
         summary: 'API Health Check',
         description: 'Verifies server status, service availability, and version details.',
         operationId: 'getHealth',
@@ -51,6 +62,7 @@ export const openApiSpec = {
     },
     '/render-receipt': {
       post: {
+        tags: ['Core Engine'],
         summary: 'Render ESC/POS to JSON (HTML + SVG + Stats)',
         description: 'Parses raw ESC/POS commands or plain text and returns rendered HTML markup, standalone vector SVG, line statistics, and hardware control events.',
         operationId: 'renderReceipt',
@@ -94,6 +106,7 @@ export const openApiSpec = {
         },
       },
       get: {
+        tags: ['Core Engine'],
         summary: 'Render Receipt via Query Parameters',
         description: 'Renders receipt using URL query string parameters for quick cURL tests and GET integrations.',
         operationId: 'renderReceiptGet',
@@ -118,6 +131,7 @@ export const openApiSpec = {
     },
     '/render-image': {
       get: {
+        tags: ['Core Engine'],
         summary: 'Render Receipt as Vector SVG Image',
         description: 'Generates direct image/svg+xml or JSON payload with base64 data URL for direct embedding in <img> tags or HTML previews.',
         operationId: 'renderImage',
@@ -151,6 +165,7 @@ export const openApiSpec = {
     },
     '/webhook': {
       post: {
+        tags: ['Core Engine'],
         summary: 'Receive E-Commerce or POS Webhook & Convert to Thermal Receipt',
         description: 'Accepts incoming order webhooks from Shopify, Stripe, Square, or custom POS systems and automatically compiles structured JSON orders or raw ESC/POS commands into thermal receipts.',
         operationId: 'receiveWebhook',
@@ -177,6 +192,274 @@ export const openApiSpec = {
                     timestamp: { type: 'string', example: '2026-08-07T04:18:00.000Z' },
                     orderId: { type: 'string', example: 'ORD-8821' },
                     receipt: { $ref: '#/components/schemas/ReceiptResponse' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/v2/printer/open/open/device/pushContent': {
+      post: {
+        tags: ['Sunmi Cloud APIs'],
+        summary: 'Sunmi Push Content Official Cloud API',
+        description: 'Pushes printing tasks directly to Sunmi cloud printers. Accepts ESC/POS command hex strings, text, or order JSON and returns official Sunmi task metadata along with receipt visual assets.',
+        operationId: 'sunmiPushContentOfficial',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  sn: { type: 'string', example: 'N302LDY000353', description: 'Sunmi printer serial number' },
+                  trade_no: { type: 'string', example: '3433135', description: 'Merchant order unique ID' },
+                  content: { type: 'string', example: '1b2130e58d97e59bbde8b685e5b882', description: 'Hex encoded ESC/POS commands or plain string' },
+                  count: { type: 'number', example: 1, description: 'Number of printed receipts' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Print task pushed successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    code: { type: 'number', example: 1 },
+                    msg: { type: 'string', example: 'success' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        trade_no: { type: 'string', example: '3433135' },
+                        sn: { type: 'string', example: 'N302LDY000353' },
+                        is_print: { type: 'number', example: 1 },
+                        print_time: { type: 'number', example: 1639621476 },
+                        receipt: { $ref: '#/components/schemas/ReceiptResponse' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/v2/printer/open/open/device/bindShop': {
+      post: {
+        tags: ['Sunmi Cloud APIs'],
+        summary: 'Sunmi Bind Shop Official Cloud API',
+        description: 'Binds a Sunmi printer device serial number to a merchant shop ID.',
+        operationId: 'sunmiBindShopOfficial',
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  sn: { type: 'string', example: 'N302LDY000353' },
+                  shop_id: { type: 'number', example: 2441 },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Shop bound successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    code: { type: 'number', example: 1 },
+                    msg: { type: 'string', example: 'success' },
+                    data: { type: 'object', nullable: true, example: null },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/v2/printer/open/open/device/unbindShop': {
+      post: {
+        tags: ['Sunmi Cloud APIs'],
+        summary: 'Sunmi Unbind Shop Official Cloud API',
+        description: 'Unbinds a Sunmi printer serial number from a shop.',
+        operationId: 'sunmiUnbindShopOfficial',
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  sn: { type: 'string', example: 'N302LDY000353' },
+                  shop_id: { type: 'number', example: 2441 },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Shop unbound successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    code: { type: 'number', example: 1 },
+                    msg: { type: 'string', example: 'success' },
+                    data: { type: 'object', nullable: true, example: null },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/v2/printer/open/open/device/onlineStatus': {
+      post: {
+        tags: ['Sunmi Cloud APIs'],
+        summary: 'Sunmi Device Online Status Official Cloud API',
+        description: 'Queries online status of device(s) under shop_id or sn.',
+        operationId: 'sunmiOnlineStatusOfficial',
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  sn: { type: 'string', example: 'N302LDY000353' },
+                  page_no: { type: 'number', example: 1 },
+                  page_size: { type: 'number', example: 100 },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Online status retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    code: { type: 'number', example: 1 },
+                    msg: { type: 'string', example: 'success' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        list: {
+                          type: 'array',
+                          items: {
+                            type: 'object',
+                            properties: {
+                              sn: { type: 'string', example: 'N302LDY000353' },
+                              is_online: { type: 'number', example: 1 },
+                            },
+                          },
+                        },
+                        page: {
+                          type: 'object',
+                          properties: {
+                            total: { type: 'number', example: 1 },
+                            page_no: { type: 'number', example: 1 },
+                            page_size: { type: 'number', example: 100 },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/v2/printer/open/open/device/clearPrintJob': {
+      post: {
+        tags: ['Sunmi Cloud APIs'],
+        summary: 'Sunmi Clear Print Job Official Cloud API',
+        description: 'Clears print queue cached in the cloud for a Sunmi printer device.',
+        operationId: 'sunmiClearPrintJobOfficial',
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  sn: { type: 'string', example: 'N302LDY000353' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Queue cleared successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    code: { type: 'number', example: 1 },
+                    msg: { type: 'string', example: 'success' },
+                    data: { type: 'object', nullable: true, example: null },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/v2/printer/open/open/ticket/printStatus': {
+      post: {
+        tags: ['Sunmi Cloud APIs'],
+        summary: 'Sunmi Ticket Print Status Official Cloud API',
+        description: 'Queries order printing completion status by trade_no.',
+        operationId: 'sunmiTicketPrintStatusOfficial',
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  trade_no: { type: 'string', example: '3433134' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Print status retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    code: { type: 'number', example: 1 },
+                    msg: { type: 'string', example: 'success' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        sn: { type: 'string', example: 'N302LDY000353' },
+                        is_print: { type: 'number', example: 1 },
+                        print_time: { type: 'number', example: 1639621476 },
+                      },
+                    },
                   },
                 },
               },

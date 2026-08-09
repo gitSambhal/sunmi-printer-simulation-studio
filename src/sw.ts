@@ -2,6 +2,15 @@
 import { parseEscPos, escapedStringToBytes, textToBytes } from './lib/escpos';
 import { renderReceiptToHtml, renderReceiptToSvg } from './lib/renderHtml';
 import { openApiSpec, getSwaggerHtml } from './lib/openapi';
+import {
+  handleSunmiBindShop,
+  handleSunmiUnbindShop,
+  handleSunmiOnlineStatus,
+  handleSunmiOnlineStatuses,
+  handleSunmiClearPrintJob,
+  handleSunmiPrintStatus,
+  handleSunmiPushContent,
+} from './lib/sunmiApi';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -211,6 +220,115 @@ async function handleApiRequest(request: Request): Promise<Response> {
         { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
       );
     }
+  }
+
+  // --- SUNMI OFFICIAL CLOUD PRINTER MOCK APIS IN SW ---
+  const lowerPath = pathname.toLowerCase();
+
+  if (lowerPath.includes('/unbindshop') || lowerPath.includes('/unbind-shop')) {
+    let bodyObj: any = {};
+    if (request.method === 'POST') {
+      try { bodyObj = await request.clone().json(); } catch {}
+    }
+    const queryObj = Object.fromEntries(url.searchParams.entries());
+    const params = { ...queryObj, ...bodyObj };
+    return new Response(JSON.stringify(handleSunmiUnbindShop(params)), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  if (lowerPath.includes('/bindshop') || lowerPath.includes('/bind-shop')) {
+    let bodyObj: any = {};
+    if (request.method === 'POST') {
+      try { bodyObj = await request.clone().json(); } catch {}
+    }
+    const queryObj = Object.fromEntries(url.searchParams.entries());
+    const params = { ...queryObj, ...bodyObj };
+    return new Response(JSON.stringify(handleSunmiBindShop(params)), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  if (lowerPath.includes('/online-statuses')) {
+    let bodyObj: any = {};
+    if (request.method === 'POST') {
+      try { bodyObj = await request.clone().json(); } catch {}
+    }
+    const queryObj = Object.fromEntries(url.searchParams.entries());
+    const params = { ...queryObj, ...bodyObj };
+    return new Response(JSON.stringify(handleSunmiOnlineStatuses(params)), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  if (lowerPath.includes('/onlinestatus') || lowerPath.includes('/online-status')) {
+    let bodyObj: any = {};
+    if (request.method === 'POST') {
+      try { bodyObj = await request.clone().json(); } catch {}
+    }
+    const queryObj = Object.fromEntries(url.searchParams.entries());
+    const params = { ...queryObj, ...bodyObj };
+    const segments = pathname.split('/').filter(Boolean);
+    const lastSeg = segments[segments.length - 1];
+    const snInPath = lastSeg && lastSeg.toLowerCase() !== 'onlinestatus' && lastSeg.toLowerCase() !== 'online-status' ? lastSeg : undefined;
+    return new Response(JSON.stringify(handleSunmiOnlineStatus(snInPath, params)), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  if (lowerPath.includes('/clearprintjob') || lowerPath.includes('/clear-print-job')) {
+    let bodyObj: any = {};
+    if (request.method === 'POST') {
+      try { bodyObj = await request.clone().json(); } catch {}
+    }
+    const queryObj = Object.fromEntries(url.searchParams.entries());
+    const params = { ...queryObj, ...bodyObj };
+    return new Response(JSON.stringify(handleSunmiClearPrintJob(params)), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  if (lowerPath.includes('/printstatus') || lowerPath.includes('/print-status')) {
+    let bodyObj: any = {};
+    if (request.method === 'POST') {
+      try { bodyObj = await request.clone().json(); } catch {}
+    }
+    const queryObj = Object.fromEntries(url.searchParams.entries());
+    const params = { ...queryObj, ...bodyObj };
+    const segments = pathname.split('/').filter(Boolean);
+    const lastSeg = segments[segments.length - 1];
+    const tradeNoInPath = lastSeg && lastSeg.toLowerCase() !== 'printstatus' && lastSeg.toLowerCase() !== 'print-status' ? lastSeg : undefined;
+    return new Response(JSON.stringify(handleSunmiPrintStatus(tradeNoInPath, params)), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  if (lowerPath.includes('/pushcontent') || lowerPath.includes('/push-content')) {
+    let bodyObj: any = {};
+    if (request.method === 'POST') {
+      try {
+        const cloned = request.clone();
+        const contentType = request.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          bodyObj = await cloned.json();
+        } else {
+          const textVal = await cloned.text();
+          bodyObj = { content: textVal };
+        }
+      } catch {}
+    }
+    const queryObj = Object.fromEntries(url.searchParams.entries());
+    const params = { ...queryObj, ...bodyObj };
+    return new Response(JSON.stringify(handleSunmiPushContent(params)), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
   }
 
   // Parse parameters from body (POST) or search params (GET)

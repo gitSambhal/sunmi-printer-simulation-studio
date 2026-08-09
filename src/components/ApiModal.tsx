@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Copy,
@@ -35,16 +35,10 @@ interface ApiModalProps {
 }
 
 type MainTabType = 'playground' | 'swagger' | 'webhook' | 'snippets';
-type CodeTabType = 'curl_post' | 'curl_get' | 'get_image' | 'webhook_curl' | 'nodejs' | 'python' | 'n8n';
+type CodeTabType = 'curl_post' | 'curl_get' | 'get_image' | 'webhook_curl' | 'sunmi_push' | 'nodejs' | 'python' | 'n8n';
 
 export const ApiModal: React.FC<ApiModalProps> = ({ isOpen, onClose, rawString, width, initialTab }) => {
   const [mainTab, setMainTab] = useState<MainTabType>(initialTab || 'playground');
-
-  React.useEffect(() => {
-    if (initialTab) {
-      setMainTab(initialTab);
-    }
-  }, [initialTab]);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [codeTab, setCodeTab] = useState<CodeTabType>('curl_post');
   const [isWordWrapped, setIsWordWrapped] = useState<boolean>(false);
@@ -104,6 +98,12 @@ export const ApiModal: React.FC<ApiModalProps> = ({ isOpen, onClose, rawString, 
       2
     )
   );
+
+  useEffect(() => {
+    if (initialTab) {
+      setMainTab(initialTab);
+    }
+  }, [initialTab]);
 
   if (!isOpen) return null;
 
@@ -291,6 +291,17 @@ curl -X POST "${appUrl}/api/webhook" \\
   -H "X-Webhook-Secret: ${outboundSecret}" \\
   -d '${webhookOrderPayload}'`;
 
+  const sunmiPushSnippet = `# Official Sunmi Cloud Printer Push Content API Endpoint
+curl -X POST "${appUrl}/api/sunmi/push-content" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "sn": "N308D88A10023",
+    "tradeNo": "SUNMI_TD_992011",
+    "content": ${JSON.stringify(rawString)},
+    "width": "${width}",
+    "cycles": 1
+  }'`;
+
   const nodejsSnippet = `import fetch from 'node-fetch'; // Built-in in Node.js 18+
 
 async function generateThermalReceipt() {
@@ -350,6 +361,8 @@ print("SVG Output:", data.get("svg"))`;
         return getImageSnippet;
       case 'webhook_curl':
         return webhookCurlSnippet;
+      case 'sunmi_push':
+        return sunmiPushSnippet;
       case 'nodejs':
         return nodejsSnippet;
       case 'python':
@@ -477,13 +490,62 @@ print("SVG Output:", data.get("svg"))`;
                       onChange={(e) => {
                         const ep = e.target.value;
                         setSelectedEndpoint(ep);
-                        if (ep === '/api/health') setSelectedMethod('GET');
-                        else if (ep === '/api/webhook') setSelectedMethod('POST');
-                        else if (ep === '/api/render-receipt') setSelectedMethod('POST');
+                        if (ep === '/api/health' || ep.includes('/online-status/') || ep.includes('/print-status/')) {
+                          setSelectedMethod('GET');
+                        } else {
+                          setSelectedMethod('POST');
+                        }
+
+                        if (ep === '/api/sunmi/push-content' || ep === '/v2/printer/open/open/device/pushContent') {
+                          setCustomRequestBody(
+                            JSON.stringify(
+                              {
+                                sn: 'N302LDY000353',
+                                trade_no: '3433135',
+                                count: 1,
+                                content: rawString,
+                                width: testWidth,
+                              },
+                              null,
+                              2
+                            )
+                          );
+                        } else if (ep === '/api/sunmi/bind-shop' || ep === '/v2/printer/open/open/device/bindShop') {
+                          setCustomRequestBody(
+                            JSON.stringify({ sn: 'N302LDY000353', shop_id: 2441 }, null, 2)
+                          );
+                        } else if (ep === '/api/sunmi/unbind-shop' || ep === '/v2/printer/open/open/device/unbindShop') {
+                          setCustomRequestBody(
+                            JSON.stringify({ sn: 'N302LDY000353', shop_id: 2441 }, null, 2)
+                          );
+                        } else if (ep === '/api/sunmi/online-statuses' || ep === '/v2/printer/open/open/device/onlineStatus') {
+                          setCustomRequestBody(
+                            JSON.stringify({ sn: 'N302LDY000353', page_no: 1, page_size: 10 }, null, 2)
+                          );
+                        } else if (ep === '/v2/printer/open/open/device/clearPrintJob') {
+                          setCustomRequestBody(
+                            JSON.stringify({ sn: 'N302LDY000353' }, null, 2)
+                          );
+                        } else if (ep === '/v2/printer/open/open/ticket/printStatus') {
+                          setCustomRequestBody(
+                            JSON.stringify({ trade_no: '3433134' }, null, 2)
+                          );
+                        } else if (ep === '/api/render-receipt') {
+                          setCustomRequestBody(
+                            JSON.stringify({ raw: rawString, mode: testMode, width: testWidth }, null, 2)
+                          );
+                        }
                       }}
                       className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs font-mono font-bold text-white focus:outline-none focus:border-amber-500"
                     >
-                      <option value="/api/render-receipt">/api/render-receipt (Full HTML + SVG)</option>
+                      <option value="/v2/printer/open/open/device/pushContent">/v2/printer/open/open/device/pushContent (Official Push Content API)</option>
+                      <option value="/v2/printer/open/open/device/bindShop">/v2/printer/open/open/device/bindShop (Official Bind Shop API)</option>
+                      <option value="/v2/printer/open/open/device/unbindShop">/v2/printer/open/open/device/unbindShop (Official Unbind Shop API)</option>
+                      <option value="/v2/printer/open/open/device/onlineStatus">/v2/printer/open/open/device/onlineStatus (Official Online Status API)</option>
+                      <option value="/v2/printer/open/open/device/clearPrintJob">/v2/printer/open/open/device/clearPrintJob (Official Clear Queue API)</option>
+                      <option value="/v2/printer/open/open/ticket/printStatus">/v2/printer/open/open/ticket/printStatus (Official Print Status API)</option>
+                      <option value="/api/sunmi/push-content">/api/sunmi/push-content (Short Push Content Endpoint)</option>
+                      <option value="/api/render-receipt">/api/render-receipt (Standard ESC/POS JSON)</option>
                       <option value="/api/render-image">/api/render-image (Direct SVG Vector)</option>
                       <option value="/api/webhook">/api/webhook (E-Commerce Receiver)</option>
                       <option value="/api/health">/api/health (API Status)</option>
@@ -832,6 +894,7 @@ print("SVG Output:", data.get("svg"))`;
               <div className="flex items-center gap-1 border-b border-neutral-200 dark:border-neutral-800 pb-1 overflow-x-auto">
                 {[
                   { id: 'curl_post', label: 'cURL (POST JSON)', icon: Terminal },
+                  { id: 'sunmi_push', label: 'Sunmi Push API', icon: Cpu },
                   { id: 'curl_get', label: 'cURL (GET)', icon: Globe },
                   { id: 'get_image', label: 'SVG Vector URL', icon: ImageIcon },
                   { id: 'webhook_curl', label: 'Webhook Order Payload', icon: Webhook },

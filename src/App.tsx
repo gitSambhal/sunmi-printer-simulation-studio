@@ -23,6 +23,13 @@ export default function App() {
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [mobileView, setMobileView] = useState<'printer' | 'editor' | 'split'>('printer');
   const [isDesktop, setIsDesktop] = useState<boolean>(typeof window !== 'undefined' ? window.innerWidth >= 768 : true);
+  
+  // Online / Offline State
+  const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+  // PWA Install Prompt State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isAppInstalled, setIsAppInstalled] = useState<boolean>(false);
 
   // Monitor Window Resize for Desktop/Tablet vs Mobile Layout
   useEffect(() => {
@@ -72,13 +79,6 @@ export default function App() {
       window.removeEventListener('touchcancel', handleEnd);
     };
   }, [isDragging, isDesktop]);
-
-  // Online / Offline State
-  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
-
-  // PWA Install Prompt State
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isAppInstalled, setIsAppInstalled] = useState<boolean>(false);
 
   useEffect(() => {
     const root = document.documentElement;

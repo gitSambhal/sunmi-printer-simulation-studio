@@ -337,6 +337,7 @@ async function handleApiRequest(request: Request): Promise<Response> {
   let width = url.searchParams.get('width') || '80mm';
   let theme = url.searchParams.get('theme') || 'light';
   let format = url.searchParams.get('format') || 'svg';
+  let outputType = url.searchParams.get('outputType') || url.searchParams.get('output_type') || 'base64';
 
   if (request.method === 'POST') {
     try {
@@ -350,6 +351,7 @@ async function handleApiRequest(request: Request): Promise<Response> {
           width = body.width ?? width;
           theme = body.theme ?? theme;
           format = body.format ?? format;
+          outputType = body.outputType ?? body.output_type ?? outputType;
         }
       } else {
         const textBody = await cloned.text();
@@ -359,6 +361,8 @@ async function handleApiRequest(request: Request): Promise<Response> {
       console.warn('[SW API Engine] Failed to parse POST body:', err);
     }
   }
+
+  outputType = outputType.toString().toLowerCase();
 
   if (!raw) {
     raw = "Epoint Store Test\n--------------------------------\nSample ESC/POS Receipt\nItem 1                     $10.00\nItem 2                      $5.00\n--------------------------------\nTotal                      $15.00\nThank You!\n";
@@ -371,14 +375,32 @@ async function handleApiRequest(request: Request): Promise<Response> {
       const widthVal = width === '58mm' ? '58mm' : '80mm';
       const html = renderReceiptToHtml(receiptData, { width: widthVal, theme: theme as any });
       const svg = renderReceiptToSvg(receiptData, { width: widthVal, theme: theme as any });
+      const base64 = btoa(unescape(encodeURIComponent(svg)));
+      const dataUrl = `data:image/svg+xml;base64,${base64}`;
+
+      const resObj: Record<string, any> = {
+        success: true,
+        width: widthVal,
+        outputType,
+      };
+
+      if (outputType === 'html') {
+        resObj.html = html;
+      } else if (outputType === 'svg') {
+        resObj.svg = svg;
+      } else if (outputType === 'dataurl' || outputType === 'data_url' || outputType === 'data-url') {
+        resObj.dataUrl = dataUrl;
+      } else if (outputType === 'all') {
+        resObj.html = html;
+        resObj.svg = svg;
+        resObj.base64 = base64;
+        resObj.dataUrl = dataUrl;
+      } else {
+        resObj.base64 = base64;
+      }
 
       return new Response(
-        JSON.stringify({
-          success: true,
-          width: widthVal,
-          html,
-          svg,
-        }),
+        JSON.stringify(resObj),
         {
           status: 200,
           headers: {
@@ -410,15 +432,31 @@ async function handleApiRequest(request: Request): Promise<Response> {
       const receiptData = parsePayloadToReceipt(raw, mode);
       const widthVal = width === '58mm' ? '58mm' : '80mm';
       const svg = renderReceiptToSvg(receiptData, { width: widthVal, theme: theme as any });
+      const base64 = btoa(unescape(encodeURIComponent(svg)));
+      const dataUrl = `data:image/svg+xml;base64,${base64}`;
 
       if (format === 'json') {
+        const jsonRes: Record<string, any> = {
+          success: true,
+          width: widthVal,
+          outputType,
+          engine: 'Service Worker Client-Side API',
+        };
+
+        if (outputType === 'svg') {
+          jsonRes.svg = svg;
+        } else if (outputType === 'dataurl' || outputType === 'data_url' || outputType === 'data-url') {
+          jsonRes.dataUrl = dataUrl;
+        } else if (outputType === 'all') {
+          jsonRes.svg = svg;
+          jsonRes.base64 = base64;
+          jsonRes.dataUrl = dataUrl;
+        } else {
+          jsonRes.base64 = base64;
+        }
+
         return new Response(
-          JSON.stringify({
-            success: true,
-            svg,
-            dataUrl: `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`,
-            engine: 'Service Worker Client-Side API',
-          }),
+          JSON.stringify(jsonRes),
           {
             status: 200,
             headers: {
@@ -427,6 +465,28 @@ async function handleApiRequest(request: Request): Promise<Response> {
             },
           }
         );
+      }
+
+      if (format === 'base64') {
+        return new Response(base64, {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/plain',
+            'Cache-Control': 'no-cache',
+            ...corsHeaders,
+          },
+        });
+      }
+
+      if (format === 'dataurl' || format === 'dataUrl') {
+        return new Response(dataUrl, {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/plain',
+            'Cache-Control': 'no-cache',
+            ...corsHeaders,
+          },
+        });
       }
 
       return new Response(svg, {

@@ -188,6 +188,7 @@ export function registerApiInterceptor() {
         let width = urlObj.searchParams.get('width') || '80mm';
         let theme = urlObj.searchParams.get('theme') || 'light';
         let format = urlObj.searchParams.get('format') || 'svg';
+        let outputType = urlObj.searchParams.get('outputType') || urlObj.searchParams.get('output_type') || 'base64';
 
         if (init?.method === 'POST' && init.body) {
           try {
@@ -198,11 +199,14 @@ export function registerApiInterceptor() {
               width = bodyJson.width ?? width;
               theme = bodyJson.theme ?? theme;
               format = bodyJson.format ?? format;
+              outputType = bodyJson.outputType ?? bodyJson.output_type ?? outputType;
             }
           } catch {
             if (typeof init.body === 'string') raw = init.body;
           }
         }
+
+        outputType = outputType.toString().toLowerCase();
 
         if (!raw) {
           raw = "Epoint Store Test\n--------------------------------\nSample ESC/POS Receipt\nItem 1                     $10.00\nItem 2                      $5.00\n--------------------------------\nTotal                      $15.00\nThank You!\n";
@@ -214,14 +218,32 @@ export function registerApiInterceptor() {
           const widthVal = width === '58mm' ? '58mm' : '80mm';
           const html = renderReceiptToHtml(receiptData, { width: widthVal, theme: theme as any });
           const svg = renderReceiptToSvg(receiptData, { width: widthVal, theme: theme as any });
+          const base64 = btoa(unescape(encodeURIComponent(svg)));
+          const dataUrl = `data:image/svg+xml;base64,${base64}`;
+
+          const resObj: Record<string, any> = {
+            success: true,
+            width: widthVal,
+            outputType,
+          };
+
+          if (outputType === 'html') {
+            resObj.html = html;
+          } else if (outputType === 'svg') {
+            resObj.svg = svg;
+          } else if (outputType === 'dataurl' || outputType === 'data_url' || outputType === 'data-url') {
+            resObj.dataUrl = dataUrl;
+          } else if (outputType === 'all') {
+            resObj.html = html;
+            resObj.svg = svg;
+            resObj.base64 = base64;
+            resObj.dataUrl = dataUrl;
+          } else {
+            resObj.base64 = base64;
+          }
 
           return new Response(
-            JSON.stringify({
-              success: true,
-              width: widthVal,
-              html,
-              svg,
-            }),
+            JSON.stringify(resObj),
             {
               status: 200,
               headers: { 'Content-Type': 'application/json' },
@@ -234,20 +256,50 @@ export function registerApiInterceptor() {
           const receiptData = parsePayloadToReceipt(raw, mode);
           const widthVal = width === '58mm' ? '58mm' : '80mm';
           const svg = renderReceiptToSvg(receiptData, { width: widthVal, theme: theme as any });
+          const base64 = btoa(unescape(encodeURIComponent(svg)));
+          const dataUrl = `data:image/svg+xml;base64,${base64}`;
 
           if (format === 'json') {
+            const jsonRes: Record<string, any> = {
+              success: true,
+              width: widthVal,
+              outputType,
+              engine: 'Client-Side Local MSW API Engine',
+            };
+
+            if (outputType === 'svg') {
+              jsonRes.svg = svg;
+            } else if (outputType === 'dataurl' || outputType === 'data_url' || outputType === 'data-url') {
+              jsonRes.dataUrl = dataUrl;
+            } else if (outputType === 'all') {
+              jsonRes.svg = svg;
+              jsonRes.base64 = base64;
+              jsonRes.dataUrl = dataUrl;
+            } else {
+              jsonRes.base64 = base64;
+            }
+
             return new Response(
-              JSON.stringify({
-                success: true,
-                svg,
-                dataUrl: `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`,
-                engine: 'Client-Side Local MSW API Engine',
-              }),
+              JSON.stringify(jsonRes),
               {
                 status: 200,
                 headers: { 'Content-Type': 'application/json' },
               }
             );
+          }
+
+          if (format === 'base64') {
+            return new Response(base64, {
+              status: 200,
+              headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'no-cache' },
+            });
+          }
+
+          if (format === 'dataurl' || format === 'dataUrl') {
+            return new Response(dataUrl, {
+              status: 200,
+              headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'no-cache' },
+            });
           }
 
           return new Response(svg, {

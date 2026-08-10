@@ -116,6 +116,7 @@ export const openApiSpec = {
           { name: 'width', in: 'query', schema: { type: 'string', enum: ['80mm', '58mm'], default: '80mm' } },
           { name: 'mode', in: 'query', schema: { type: 'string', enum: ['raw', 'text'], default: 'raw' } },
           { name: 'theme', in: 'query', schema: { type: 'string', enum: ['light', 'dark'], default: 'light' } },
+          { name: 'outputType', in: 'query', schema: { type: 'string', enum: ['base64', 'svg', 'html', 'dataurl', 'all'], default: 'base64' }, description: 'Specifies which output format to return to reduce payload size. Default is base64.' },
         ],
         responses: {
           '200': {
@@ -139,14 +140,17 @@ export const openApiSpec = {
           { name: 'raw', in: 'query', schema: { type: 'string' } },
           { name: 'text', in: 'query', schema: { type: 'string' } },
           { name: 'width', in: 'query', schema: { type: 'string', enum: ['80mm', '58mm'], default: '80mm' } },
-          { name: 'format', in: 'query', schema: { type: 'string', enum: ['svg', 'json'], default: 'svg' } },
+          { name: 'format', in: 'query', schema: { type: 'string', enum: ['svg', 'json', 'base64', 'dataurl'], default: 'svg' } },
         ],
         responses: {
           '200': {
-            description: 'Returns SVG XML image or JSON image object',
+            description: 'Returns SVG XML image, plain text base64 string, or JSON image object with base64 and dataUrl',
             content: {
               'image/svg+xml': {
                 schema: { type: 'string', format: 'binary' },
+              },
+              'text/plain': {
+                schema: { type: 'string', description: 'Raw base64 encoded string or Data URL' },
               },
               'application/json': {
                 schema: {
@@ -154,7 +158,8 @@ export const openApiSpec = {
                   properties: {
                     success: { type: 'boolean' },
                     svg: { type: 'string' },
-                    dataUrl: { type: 'string' },
+                    base64: { type: 'string', description: 'Raw base64 string of receipt image' },
+                    dataUrl: { type: 'string', description: 'Data URL representation (data:image/svg+xml;base64,...)' },
                   },
                 },
               },
@@ -479,6 +484,7 @@ export const openApiSpec = {
           mode: { type: 'string', enum: ['raw', 'text'], default: 'raw' },
           width: { type: 'string', enum: ['80mm', '58mm'], default: '80mm' },
           theme: { type: 'string', enum: ['light', 'dark'], default: 'light' },
+          outputType: { type: 'string', enum: ['base64', 'svg', 'html', 'dataurl', 'all'], default: 'base64', description: 'Select specific output format to reduce payload size. Defaults to base64.' },
         },
       },
       ReceiptResponse: {
@@ -486,8 +492,11 @@ export const openApiSpec = {
         properties: {
           success: { type: 'boolean', example: true },
           width: { type: 'string', example: '80mm' },
-          html: { type: 'string', description: 'Rendered DOM HTML string' },
-          svg: { type: 'string', description: 'Standalone vector SVG markup' },
+          outputType: { type: 'string', example: 'base64' },
+          base64: { type: 'string', description: 'Raw base64 encoded string of rendered SVG receipt image (Default response field)' },
+          html: { type: 'string', description: 'Rendered DOM HTML string (Returned when outputType=html or all)' },
+          svg: { type: 'string', description: 'Standalone vector SVG markup (Returned when outputType=svg or all)' },
+          dataUrl: { type: 'string', description: 'Complete Data URL format (data:image/svg+xml;base64,...) ready for <img> src (Returned when outputType=dataurl or all)' },
         },
       },
       WebhookPayload: {

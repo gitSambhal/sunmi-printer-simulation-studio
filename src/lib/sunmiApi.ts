@@ -170,9 +170,28 @@ export function handleSunmiPushContent(params: any = {}) {
     bytes = escapedStringToBytes(convertPayloadToEscPos(params));
   }
 
+  const outputType = (params.outputType || params.output_type || 'base64').toString().toLowerCase();
+
   const receiptData = parseEscPos(bytes);
   const html = renderReceiptToHtml(receiptData, { width: widthVal, theme: 'light' });
   const svg = renderReceiptToSvg(receiptData, { width: widthVal, theme: 'light' });
+  const base64 = typeof Buffer !== 'undefined'
+    ? Buffer.from(svg).toString('base64')
+    : btoa(unescape(encodeURIComponent(svg)));
+  const dataUrl = `data:image/svg+xml;base64,${base64}`;
+
+  let receiptObj: Record<string, any> = { width: widthVal, outputType, receiptData };
+  if (outputType === 'html') {
+    receiptObj.html = html;
+  } else if (outputType === 'svg') {
+    receiptObj.svg = svg;
+  } else if (outputType === 'dataurl' || outputType === 'data_url' || outputType === 'data-url') {
+    receiptObj.dataUrl = dataUrl;
+  } else if (outputType === 'all') {
+    receiptObj = { width: widthVal, outputType, html, svg, base64, dataUrl, receiptData };
+  } else {
+    receiptObj.base64 = base64;
+  }
 
   return {
     code: 1,
@@ -183,12 +202,7 @@ export function handleSunmiPushContent(params: any = {}) {
       is_print: 1,
       print_time: Math.floor(Date.now() / 1000),
       count: count,
-      receipt: {
-        width: widthVal,
-        html,
-        svg,
-        receiptData
-      }
+      receipt: receiptObj
     }
   };
 }

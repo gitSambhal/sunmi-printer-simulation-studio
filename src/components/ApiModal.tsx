@@ -213,7 +213,7 @@ export const ApiModal: React.FC<ApiModalProps> = ({ isOpen, onClose, rawString, 
       const renderRes = await fetch('/api/render-receipt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ raw: rawString, width }),
+        body: JSON.stringify({ raw: rawString, width, outputType: 'all' }),
       });
       const receiptData = await renderRes.json();
 
@@ -282,10 +282,13 @@ export const ApiModal: React.FC<ApiModalProps> = ({ isOpen, onClose, rawString, 
   const getImageSnippet = `# Direct SVG Vector Image Endpoint
 curl -X GET "${appUrl}/api/render-image?width=${width}&raw=${encodedRaw}"
 
-# Embed directly in HTML <img> tag:
+# Base64 Image Endpoint (Returns plain text base64 string)
+curl -X GET "${appUrl}/api/render-image?format=base64&width=${width}&raw=${encodedRaw}"
+
+# Embed directly in HTML <img> tag using API URL or Data URL:
 <img src="${appUrl}/api/render-image?width=${width}&raw=${encodedRaw}" alt="Receipt Preview" />`;
 
-  const webhookCurlSnippet = `# Webhook endpoint converts E-Commerce/POS JSON Orders directly to Receipt HTML/SVG
+  const webhookCurlSnippet = `# Webhook endpoint converts E-Commerce/POS JSON Orders directly to Receipt HTML/SVG/Base64
 curl -X POST "${appUrl}/api/webhook" \\
   -H "Content-Type: application/json" \\
   -H "X-Webhook-Secret: ${outboundSecret}" \\
@@ -320,6 +323,8 @@ async function generateThermalReceipt() {
   const data = await response.json();
   console.log("Status Code:", response.status);
   console.log("SVG Vector Output:", data.svg);
+  console.log("Base64 String:", data.base64);
+  console.log("Data URL (for <img> src):", data.dataUrl);
 }
 
 generateThermalReceipt();`;
@@ -337,7 +342,9 @@ response = requests.post(url, json=payload)
 data = response.json()
 
 print("Status:", response.status_code)
-print("SVG Output:", data.get("svg"))`;
+print("SVG Output:", data.get("svg"))
+print("Base64 Output:", data.get("base64"))
+print("Data URL:", data.get("dataUrl"))`;
 
   const n8nSnippet = `{
   "method": "POST",

@@ -127,7 +127,7 @@ Accepts incoming order webhooks from e-commerce platforms or POS systems and aut
 
 ### 3. Render Receipt (JSON Response)
 
-Parses ESC/POS binary or raw text commands and returns structured JSON with rendered HTML markup, vector SVG, printer statistics, and control events.
+Parses ESC/POS binary or raw text commands and returns structured JSON with rendered HTML markup, vector SVG, raw base64 image strings, base64 Data URLs (`data:image/svg+xml;base64,...`), printer statistics, and control events.
 
 - **Endpoint**: `/api/render-receipt` or `/render-receipt`
 - **Methods**: `GET` | `POST`
@@ -140,15 +140,30 @@ Parses ESC/POS binary or raw text commands and returns structured JSON with rend
 | `mode` | `string` | `"raw"` (default), `"text"` | Parsing mode. `"raw"` processes byte escapes (`\x1b`, `\x1d`), `"text"` treats input as plain text. |
 | `width` | `string` | `"80mm"` (default), `"58mm"` | Receipt paper width specification. |
 | `theme` | `string` | `"light"` (default), `"dark"` | Aesthetic color theme for output HTML/SVG. |
+| `outputType` | `string` | `"base64"` (default), `"svg"`, `"html"`, `"dataurl"`, `"all"` | Controls output format to keep API responses compact. Defaults to `"base64"`. |
+
+#### Response Fields (`application/json`)
+- `success`: `boolean`
+- `width`: `"80mm"` | `"58mm"`
+- `outputType`: `"base64"` | `"svg"` | `"html"` | `"dataurl"` | `"all"`
+- `base64`: Raw base64 encoded string of receipt SVG image *(Returned by default or when `outputType=base64` or `all`)*
+- `html`: Rendered DOM HTML string *(Returned when `outputType=html` or `all`)*
+- `svg`: Vector SVG markup string *(Returned when `outputType=svg` or `all`)*
+- `dataUrl`: Complete Data URL string (`data:image/svg+xml;base64,...`) ready for `<img src="...">` *(Returned when `outputType=dataurl` or `all`)*
 
 ---
 
 ### 4. Render Receipt Image / SVG
 
-Generates direct image output or JSON data URL suitable for `<img>` tags, PDF export, or instant browser preview.
+Generates direct image output, raw base64, or JSON data URL suitable for `<img>` tags, PDF export, or instant browser preview.
 
 - **Endpoint**: `/api/render-image` or `/render-image`
 - **Methods**: `GET` | `POST`
+- **Format Parameter (`format`)**:
+  - `svg` *(default)*: Returns `image/svg+xml` vector image directly.
+  - `json`: Returns JSON object with `{ success: true, svg, base64, dataUrl }`.
+  - `base64`: Returns plain text base64 encoded image string.
+  - `dataurl`: Returns plain text Data URL string (`data:image/svg+xml;base64,...`).
 
 ---
 

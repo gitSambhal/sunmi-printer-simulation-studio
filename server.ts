@@ -127,6 +127,23 @@ const handleWebhook = (req: any, res: any) => {
     const widthVal = width === '58mm' ? '58mm' : '80mm';
     const html = renderReceiptToHtml(receiptData, { width: widthVal, theme: 'light' });
     const svg = renderReceiptToSvg(receiptData, { width: widthVal, theme: 'light' });
+    const base64 = Buffer.from(svg).toString('base64');
+    const dataUrl = `data:image/svg+xml;base64,${base64}`;
+
+    const outputType = (req.body?.outputType ?? req.query?.outputType ?? req.body?.output_type ?? req.query?.output_type ?? 'base64').toString().toLowerCase();
+
+    let receiptObj: Record<string, any> = {};
+    if (outputType === 'html') {
+      receiptObj = { html };
+    } else if (outputType === 'svg') {
+      receiptObj = { svg };
+    } else if (outputType === 'dataurl' || outputType === 'data_url') {
+      receiptObj = { dataUrl };
+    } else if (outputType === 'all') {
+      receiptObj = { html, svg, base64, dataUrl };
+    } else {
+      receiptObj = { base64 };
+    }
 
     return res.json({
       success: true,
@@ -134,10 +151,8 @@ const handleWebhook = (req: any, res: any) => {
       timestamp: new Date().toISOString(),
       orderId: req.body?.orderId || req.body?.id || 'ORD-WEBHOOK',
       width: widthVal,
-      receipt: {
-        html,
-        svg,
-      },
+      outputType,
+      receipt: receiptObj,
     });
   } catch (err: any) {
     return res.status(500).json({ error: 'Failed to process webhook event', details: err?.message });
@@ -188,13 +203,34 @@ const handleRenderReceipt = (req: any, res: any) => {
 
     const html = renderReceiptToHtml(receiptData, { width: widthVal, theme: themeVal });
     const svg = renderReceiptToSvg(receiptData, { width: widthVal, theme: themeVal });
+    const base64 = Buffer.from(svg).toString('base64');
+    const dataUrl = `data:image/svg+xml;base64,${base64}`;
 
-    return res.json({
+    const outputType = (req.body?.outputType ?? req.query?.outputType ?? req.body?.output_type ?? req.query?.output_type ?? 'base64').toString().toLowerCase();
+
+    const responsePayload: Record<string, any> = {
       success: true,
       width: widthVal,
-      html,
-      svg,
-    });
+      outputType,
+    };
+
+    if (outputType === 'html') {
+      responsePayload.html = html;
+    } else if (outputType === 'svg') {
+      responsePayload.svg = svg;
+    } else if (outputType === 'dataurl' || outputType === 'data_url') {
+      responsePayload.dataUrl = dataUrl;
+    } else if (outputType === 'all') {
+      responsePayload.html = html;
+      responsePayload.svg = svg;
+      responsePayload.base64 = base64;
+      responsePayload.dataUrl = dataUrl;
+    } else {
+      // Default: base64
+      responsePayload.base64 = base64;
+    }
+
+    return res.json(responsePayload);
   } catch (err: any) {
     console.error('Error rendering receipt API:', err);
     return res.status(500).json({ error: 'Failed to process receipt input', details: err?.message });
@@ -242,13 +278,43 @@ const handleRenderImage = (req: any, res: any) => {
     const receiptData = parsePayloadToReceipt(rawString, mode);
     const widthVal = width === '58mm' ? '58mm' : '80mm';
     const svg = renderReceiptToSvg(receiptData, { width: widthVal });
+    const base64 = Buffer.from(svg).toString('base64');
+    const dataUrl = `data:image/svg+xml;base64,${base64}`;
+
+    const outputType = (req.body?.outputType ?? req.query?.outputType ?? req.body?.output_type ?? req.query?.output_type ?? 'base64').toString().toLowerCase();
 
     if (format === 'json') {
-      return res.json({
+      const jsonPayload: Record<string, any> = {
         success: true,
-        svg,
-        dataUrl: `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`,
-      });
+        width: widthVal,
+        outputType,
+      };
+
+      if (outputType === 'svg') {
+        jsonPayload.svg = svg;
+      } else if (outputType === 'dataurl' || outputType === 'data_url' || outputType === 'data-url') {
+        jsonPayload.dataUrl = dataUrl;
+      } else if (outputType === 'all') {
+        jsonPayload.svg = svg;
+        jsonPayload.base64 = base64;
+        jsonPayload.dataUrl = dataUrl;
+      } else {
+        jsonPayload.base64 = base64;
+      }
+
+      return res.json(jsonPayload);
+    }
+
+    if (format === 'base64') {
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Cache-Control', 'no-cache');
+      return res.send(base64);
+    }
+
+    if (format === 'dataurl' || format === 'dataUrl') {
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Cache-Control', 'no-cache');
+      return res.send(dataUrl);
     }
 
     res.setHeader('Content-Type', 'image/svg+xml');

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.0] - 2026-10-07
+
+### Added
+- **Zen Mode**: Distraction-free, clutter-free visualization mode. Collapses all headers, footers, and sidebars to dedicate 100% of the screen to the thermal printer receipt simulator.
+- **Floating Zen HUD**: Sleek glassmorphic floating control pill in Zen Mode providing instant access to 3D/2D switching, paper width toggling, feed simulation, scissors cut, direct thermal print (`Ctrl+P`), SVG/PNG export, editor drawer toggle, and theme switching.
+- **Keyboard Shortcuts**: Added `Z` key shortcut to toggle Zen Mode and `Esc` key to exit instantly.
+
+### Changed
+- **Unified Single Stage**: Streamlined navigation by consolidating 3D terminal and 2D flat paper views into a single unified stage, removing redundant top-level tabs for a cleaner, focused interface.
+- **Direct Thermal Print**: Added native browser thermal printing (`@media print`) directly from the export suite.
+
+---
+
 ## [1.2.1] - 2026-10-06
 
 ### Fixed

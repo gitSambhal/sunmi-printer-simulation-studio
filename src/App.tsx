@@ -1,5 +1,5 @@
 /**
- * Sunmi Printer Simulation Studio & Flat Receipt Engine
+ * Sunmi Printer Simulation Studio
  * Created by Suhail Akhtar (https://suhail.top)
  */
 
@@ -8,11 +8,10 @@ import {
   Sun, Moon, Printer, Terminal, ShieldCheck, Download, 
   Wifi, WifiOff, Globe, ExternalLink, Smartphone, 
   PanelLeftClose, PanelLeftOpen, GripVertical, FileText, 
-  Sparkles, Layers
+  Sparkles, Maximize2, Minimize2, Box
 } from 'lucide-react';
 import { RawInput } from './components/RawInput';
 import { ReceiptPreview } from './components/ReceiptPreview';
-import { FlatReceiptPage } from './components/FlatReceiptPage';
 import { ToastContainer, ToastItem, ToastType } from './components/Toast';
 import { ChangelogModal } from './components/ChangelogModal';
 import { parseEscPos, textToBytes, escapedStringToBytes } from './lib/escpos';
@@ -26,20 +25,12 @@ const EXAMPLES = {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'studio' | 'receipt'>(() => {
-    if (typeof window !== 'undefined') {
-      const hash = window.location.hash.toLowerCase();
-      const search = window.location.search.toLowerCase();
-      if (hash.includes('receipt') || search.includes('receipt')) return 'receipt';
-    }
-    return 'studio';
-  });
-
   const [inputValue, setInputValue] = useState<string>(EXAMPLES.complex);
   const [inputMode, setInputMode] = useState<'text' | 'raw'>('raw');
   const [width, setWidth] = useState<'58mm' | '80mm'>('80mm');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  const [isZenMode, setIsZenMode] = useState<boolean>(false);
   const [sidebarWidth, setSidebarWidth] = useState<number>(360);
   const [sidebarHeight, setSidebarHeight] = useState<number>(240);
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -68,27 +59,26 @@ export default function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Sync Hash on view change
-  const handleTabChange = (newTab: 'studio' | 'receipt') => {
-    setActiveTab(newTab);
-    if (typeof window !== 'undefined') {
-      window.location.hash = newTab === 'receipt' ? '#/receipt' : '#/studio';
-    }
-  };
-
-  // Listen for hashchange
+  // Keyboard shortcut listener for Zen Mode (Z or Esc)
   useEffect(() => {
-    const handleHash = () => {
-      const hash = window.location.hash.toLowerCase();
-      if (hash.includes('receipt')) {
-        setActiveTab('receipt');
-      } else if (hash.includes('studio')) {
-        setActiveTab('studio');
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeTag = document.activeElement?.tagName?.toLowerCase();
+      const isInput = activeTag === 'input' || activeTag === 'textarea' || (document.activeElement as HTMLElement)?.isContentEditable;
+      
+      if (e.key === 'Escape' && isZenMode) {
+        setIsZenMode(false);
+        addToast('Exited Zen Mode', 'info');
+      } else if ((e.key === 'z' || e.key === 'Z') && !isInput && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        setIsZenMode((prev) => {
+          const next = !prev;
+          addToast(next ? 'Zen Mode active — Clutter-free UI (Press Esc or Z to exit)' : 'Exited Zen Mode', 'info');
+          return next;
+        });
       }
     };
-    window.addEventListener('hashchange', handleHash);
-    return () => window.removeEventListener('hashchange', handleHash);
-  }, []);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isZenMode]);
 
   // Monitor Window Resize for Desktop/Tablet vs Mobile Layout
   useEffect(() => {
@@ -275,66 +265,38 @@ export default function App() {
       {/* Changelog Modal */}
       <ChangelogModal isOpen={isChangelogOpen} onClose={() => setIsChangelogOpen(false)} />
 
-      {/* Header */}
-      <header className="flex items-center justify-between px-4 sm:px-6 py-2.5 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 z-30 shrink-0 gap-3">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-amber-500 rounded-lg text-white shadow-xs shrink-0">
-            <Printer size={19} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-sm sm:text-base font-bold tracking-tight">Sunmi Printer Studio</h1>
-              {/* Online / Offline Indicator Badge */}
-              <span
-                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-colors ${
-                  isOnline
-                    ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
-                    : 'bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 animate-pulse'
-                }`}
-                title={isOnline ? 'Online - Local & API services active' : 'Offline Mode Active - 100% Local Engine Running'}
-              >
-                {isOnline ? <Wifi size={11} /> : <WifiOff size={11} />}
-                <span className="hidden sm:inline">{isOnline ? 'Online' : 'Offline Ready'}</span>
-              </span>
+      {/* Header (Hidden in Zen Mode for distraction-free view) */}
+      {!isZenMode && (
+        <header className="flex items-center justify-between px-4 sm:px-6 py-2.5 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 z-30 shrink-0 gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-amber-500 rounded-lg text-white shadow-xs shrink-0">
+              <Printer size={19} />
             </div>
-            <p className="text-[10.5px] text-neutral-500 dark:text-neutral-400 hidden sm:block">
-              Professional ESC/POS &amp; Sunmi Cloud Thermal Printer Emulator
-            </p>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-sm sm:text-base font-bold tracking-tight">Sunmi Printer Studio</h1>
+                {/* Online / Offline Indicator Badge */}
+                <span
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-colors ${
+                    isOnline
+                      ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
+                      : 'bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 animate-pulse'
+                  }`}
+                  title={isOnline ? 'Online - Local & API services active' : 'Offline Mode Active - 100% Local Engine Running'}
+                >
+                  {isOnline ? <Wifi size={11} /> : <WifiOff size={11} />}
+                  <span className="hidden sm:inline">{isOnline ? 'Online' : 'Offline Ready'}</span>
+                </span>
+              </div>
+              <p className="text-[10.5px] text-neutral-500 dark:text-neutral-400 hidden sm:block">
+                Professional ESC/POS &amp; Sunmi Cloud Thermal Printer Emulator (3D &amp; 2D)
+              </p>
+            </div>
           </div>
-        </div>
 
-        {/* Center: Main View Mode Switcher (Studio vs Flat Receipt) */}
-        <div className="flex items-center bg-neutral-100 dark:bg-neutral-800 p-1 rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-2xs">
-          <button
-            onClick={() => handleTabChange('studio')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              activeTab === 'studio'
-                ? 'bg-white dark:bg-neutral-700 shadow-xs text-neutral-900 dark:text-white'
-                : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
-            }`}
-            title="3D Sunmi Terminal Simulator & Raw ESC/POS Studio"
-          >
-            <Layers size={13} className={activeTab === 'studio' ? 'text-amber-500' : ''} />
-            <span>3D Studio</span>
-          </button>
-          <button
-            onClick={() => handleTabChange('receipt')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              activeTab === 'receipt'
-                ? 'bg-white dark:bg-neutral-700 shadow-xs text-neutral-900 dark:text-white'
-                : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
-            }`}
-            title="Clean, Distraction-Free Flat Receipt Page with Export Suite"
-          >
-            <FileText size={13} className={activeTab === 'receipt' ? 'text-amber-500' : ''} />
-            <span>Flat Receipt</span>
-          </button>
-        </div>
-
-        {/* Right Action Group */}
-        <div className="flex items-center gap-2 sm:gap-2.5">
-          {/* Sidebar Toggle Button (when in studio mode) */}
-          {activeTab === 'studio' && (
+          {/* Right Action Group */}
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            {/* Sidebar Toggle Button */}
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               className={`px-2.5 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 text-xs font-semibold ${
@@ -347,191 +309,209 @@ export default function App() {
               {isSidebarOpen ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}
               <span className="hidden md:inline">{isSidebarOpen ? 'Hide Editor' : 'Show Editor'}</span>
             </button>
-          )}
 
-          {/* Paper Width Selector */}
-          <div className="flex items-center bg-neutral-100 dark:bg-neutral-800 p-0.5 rounded-lg border border-neutral-200 dark:border-neutral-700">
+            {/* Paper Width Selector */}
+            <div className="flex items-center bg-neutral-100 dark:bg-neutral-800 p-0.5 rounded-lg border border-neutral-200 dark:border-neutral-700">
+              <button
+                onClick={() => setWidth('58mm')}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
+                  width === '58mm'
+                    ? 'bg-white dark:bg-neutral-700 shadow-xs text-neutral-900 dark:text-white'
+                    : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
+                }`}
+              >
+                58mm
+              </button>
+              <button
+                onClick={() => setWidth('80mm')}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
+                  width === '80mm'
+                    ? 'bg-white dark:bg-neutral-700 shadow-xs text-neutral-900 dark:text-white'
+                    : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
+                }`}
+              >
+                80mm
+              </button>
+            </div>
+
+            {/* Zen Mode Button */}
             <button
-              onClick={() => setWidth('58mm')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
-                width === '58mm'
-                  ? 'bg-white dark:bg-neutral-700 shadow-xs text-neutral-900 dark:text-white'
-                  : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
-              }`}
+              onClick={() => {
+                setIsZenMode(true);
+                addToast('Zen Mode activated — Distraction-free view (Press Esc or Z to exit)', 'info');
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs font-semibold transition-all"
+              title="Toggle Zen Mode — Clutter-free receipt view (Shortcut: Z or Esc)"
             >
-              58mm
+              <Maximize2 size={13} className="text-amber-500" />
+              <span className="hidden sm:inline">Zen Mode</span>
+              <span className="hidden lg:inline text-[10px] text-neutral-400 font-mono bg-neutral-200 dark:bg-neutral-700 px-1 py-0.2 rounded">Z</span>
             </button>
+
+            {/* PWA Install Button */}
+            {deferredPrompt && (
+              <button
+                onClick={handleInstallClick}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold text-xs rounded-lg shadow-xs transition-all animate-bounce"
+                title="Install as App on Desktop or Mobile"
+              >
+                <Smartphone size={13} />
+                <span className="hidden sm:inline">Install App</span>
+              </button>
+            )}
+
+            {/* Dark Mode Toggle */}
             <button
-              onClick={() => setWidth('80mm')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
-                width === '80mm'
-                  ? 'bg-white dark:bg-neutral-700 shadow-xs text-neutral-900 dark:text-white'
-                  : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
-              }`}
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className="p-1.5 sm:p-2 rounded-lg border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors text-neutral-600 dark:text-neutral-300"
+              title="Toggle Dark Mode"
+              aria-label="Toggle dark mode"
             >
-              80mm
+              {isDarkMode ? <Sun size={17} /> : <Moon size={17} />}
             </button>
           </div>
-
-          {/* PWA Install Button */}
-          {deferredPrompt && (
-            <button
-              onClick={handleInstallClick}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold text-xs rounded-lg shadow-xs transition-all animate-bounce"
-              title="Install as App on Desktop or Mobile"
-            >
-              <Smartphone size={13} />
-              <span className="hidden sm:inline">Install App</span>
-            </button>
-          )}
-
-          {/* Dark Mode Toggle */}
-          <button
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            className="p-1.5 sm:p-2 rounded-lg border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors text-neutral-600 dark:text-neutral-300"
-            title="Toggle Dark Mode"
-            aria-label="Toggle dark mode"
-          >
-            {isDarkMode ? <Sun size={17} /> : <Moon size={17} />}
-          </button>
-        </div>
-      </header>
-
-      {/* Main Content Area */}
-      {activeTab === 'receipt' ? (
-        /* Flat Receipt View */
-        <FlatReceiptPage
-          data={receiptData}
-          rawString={inputValue}
-          width={width}
-          onWidthChange={setWidth}
-          onRawStringChange={setInputValue}
-          onShowToast={addToast}
-        />
-      ) : (
-        /* Studio View */
-        <main className={`flex-1 flex overflow-hidden relative flex-col md:flex-row ${isDragging ? 'select-none' : ''}`}>
-          {/* Drag Overlay Backdrop during resizing */}
-          {isDragging && (
-            <div
-              className="fixed inset-0 z-50 select-none"
-              style={{ cursor: isDesktop ? 'col-resize' : 'row-resize' }}
-            />
-          )}
-
-          {/* Editor Sidebar */}
-          <aside
-            style={
-              isSidebarOpen
-                ? isDesktop
-                  ? { width: `${sidebarWidth}px`, height: '100%' }
-                  : { width: '100%', height: `${sidebarHeight}px` }
-                : isDesktop
-                ? { width: 0, height: '100%' }
-                : { width: '100%', height: 0 }
-            }
-            className={`flex flex-col bg-white dark:bg-neutral-900 border-b md:border-b-0 md:border-r border-neutral-200 dark:border-neutral-800 shrink-0 transition-[opacity] duration-150 ${
-              isSidebarOpen ? 'opacity-100 overflow-hidden' : 'opacity-0 overflow-hidden border-0 pointer-events-none'
-            }`}
-          >
-            <RawInput
-              value={inputValue}
-              onChange={setInputValue}
-              mode={inputMode}
-              onModeChange={handleModeChange}
-              onClear={() => setInputValue('')}
-              onLoadPreset={handleLoadPreset}
-            />
-          </aside>
-
-          {/* Draggable Resizer Bar */}
-          {isSidebarOpen && (
-            <div
-              onMouseDown={(e) => {
-                e.preventDefault();
-                setIsDragging(true);
-              }}
-              onTouchStart={() => setIsDragging(true)}
-              className={`z-20 flex items-center justify-center transition-colors group select-none shrink-0 ${
-                isDesktop
-                  ? 'w-2 hover:w-2.5 cursor-col-resize h-full border-r border-neutral-200 dark:border-neutral-800'
-                  : 'h-2.5 w-full cursor-row-resize border-b border-neutral-200 dark:border-neutral-800'
-              } ${
-                isDragging
-                  ? 'bg-amber-500'
-                  : 'bg-neutral-200 dark:bg-neutral-800 hover:bg-amber-500/80 dark:hover:bg-amber-500/80'
-              }`}
-              title={isDesktop ? 'Drag horizontally to resize editor width' : 'Drag vertically to resize editor height'}
-            >
-              <GripVertical
-                size={12}
-                className={`text-neutral-500 group-hover:text-white transition-all ${
-                  isDesktop ? 'rotate-0' : 'rotate-90'
-                } ${isDragging ? 'opacity-100 text-white' : 'opacity-50 group-hover:opacity-100'}`}
-              />
-            </div>
-          )}
-
-          {/* Main Printer Visualizer Stage */}
-          <section className="flex-1 h-full min-w-0 min-h-0 bg-neutral-100 dark:bg-neutral-950 relative flex flex-col overflow-hidden">
-            <ReceiptPreview data={receiptData} width={width} rawString={inputValue} />
-          </section>
-        </main>
+        </header>
       )}
 
-      {/* Footer Info Bar */}
-      <footer className="px-4 sm:px-6 py-2 border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex justify-between items-center text-[11px] text-neutral-500 dark:text-neutral-400 font-medium shrink-0">
-        <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
-          {/* What's New Version Button */}
-          <button
-            onClick={() => setIsChangelogOpen(true)}
-            className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700 transition-colors font-mono font-bold text-[10px]"
-            title="Click to view What's New & Release Changelog"
+      {/* Main Studio Viewport */}
+      <main className={`flex-1 flex overflow-hidden relative flex-col md:flex-row ${isDragging ? 'select-none' : ''}`}>
+        {/* Drag Overlay Backdrop during resizing */}
+        {isDragging && (
+          <div
+            className="fixed inset-0 z-50 select-none"
+            style={{ cursor: isDesktop ? 'col-resize' : 'row-resize' }}
+          />
+        )}
+
+        {/* Editor Sidebar */}
+        <aside
+          style={
+            isSidebarOpen
+              ? isDesktop
+                ? { width: `${sidebarWidth}px`, height: '100%' }
+                : { width: '100%', height: `${sidebarHeight}px` }
+              : isDesktop
+              ? { width: 0, height: '100%' }
+              : { width: '100%', height: 0 }
+          }
+          className={`flex flex-col bg-white dark:bg-neutral-900 border-b md:border-b-0 md:border-r border-neutral-200 dark:border-neutral-800 shrink-0 transition-[opacity] duration-150 ${
+            isSidebarOpen ? 'opacity-100 overflow-hidden' : 'opacity-0 overflow-hidden border-0 pointer-events-none'
+          }`}
+        >
+          <RawInput
+            value={inputValue}
+            onChange={setInputValue}
+            mode={inputMode}
+            onModeChange={handleModeChange}
+            onClear={() => setInputValue('')}
+            onLoadPreset={handleLoadPreset}
+          />
+        </aside>
+
+        {/* Draggable Resizer Bar */}
+        {isSidebarOpen && (
+          <div
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setIsDragging(true);
+            }}
+            onTouchStart={() => setIsDragging(true)}
+            className={`z-20 flex items-center justify-center transition-colors group select-none shrink-0 ${
+              isDesktop
+                ? 'w-2 hover:w-2.5 cursor-col-resize h-full border-r border-neutral-200 dark:border-neutral-800'
+                : 'h-2.5 w-full cursor-row-resize border-b border-neutral-200 dark:border-neutral-800'
+            } ${
+              isDragging
+                ? 'bg-amber-500'
+                : 'bg-neutral-200 dark:bg-neutral-800 hover:bg-amber-500/80 dark:hover:bg-amber-500/80'
+            }`}
+            title={isDesktop ? 'Drag horizontally to resize editor width' : 'Drag vertically to resize editor height'}
           >
-            <span>v1.2.1</span>
-            <Sparkles size={11} className="text-amber-500" />
-          </button>
-
-          <span className="hidden sm:inline">•</span>
-
-          <span className="flex items-center gap-1">
-            <Terminal size={13} className="text-amber-500" />
-            <span>Mode: <strong className="uppercase">{inputMode}</strong></span>
-          </span>
-
-          <span className="hidden sm:inline">•</span>
-          <span>Width: <strong>{width}</strong></span>
-
-          <span className="hidden md:inline">•</span>
-          <span className="hidden md:inline">Parsed Lines: <strong>{receiptData.lines.length}</strong></span>
-        </div>
-
-        <div className="flex items-center gap-3 sm:gap-4 text-[10px]">
-          <span className="hidden sm:flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
-            <ShieldCheck size={13} />
-            100% Offline Local Engine
-          </span>
-
-          <span className="hidden sm:inline">•</span>
-
-          {/* Developer Attribution */}
-          <div className="flex items-center gap-1 text-neutral-600 dark:text-neutral-300 font-medium">
-            <span>Created by</span>
-            <a
-              href="https://suhail.top"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 hover:underline font-bold transition-colors"
-            >
-              <Globe size={11} />
-              Suhail Akhtar
-              <ExternalLink size={10} className="opacity-70" />
-            </a>
+            <GripVertical
+              size={12}
+              className={`text-neutral-500 group-hover:text-white transition-all ${
+                isDesktop ? 'rotate-0' : 'rotate-90'
+              } ${isDragging ? 'opacity-100 text-white' : 'opacity-50 group-hover:opacity-100'}`}
+            />
           </div>
-        </div>
-      </footer>
+        )}
+
+        {/* Main Printer Visualizer Stage (Embeds 3D & 2D) */}
+        <section className="flex-1 h-full min-w-0 min-h-0 bg-neutral-100 dark:bg-neutral-950 relative flex flex-col overflow-hidden">
+          <ReceiptPreview 
+            data={receiptData} 
+            width={width} 
+            onWidthChange={setWidth}
+            rawString={inputValue}
+            isZenMode={isZenMode}
+            onToggleZenMode={() => {
+              setIsZenMode((prev) => {
+                const next = !prev;
+                addToast(next ? 'Zen Mode activated' : 'Exited Zen Mode', 'info');
+                return next;
+              });
+            }}
+            isSidebarOpen={isSidebarOpen}
+            onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+            isDarkMode={isDarkMode}
+            onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+          />
+        </section>
+      </main>
+
+      {/* Footer Info Bar (Hidden in Zen Mode) */}
+      {!isZenMode && (
+        <footer className="px-4 sm:px-6 py-2 border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex justify-between items-center text-[11px] text-neutral-500 dark:text-neutral-400 font-medium shrink-0">
+          <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+            {/* What's New Version Button */}
+            <button
+              onClick={() => setIsChangelogOpen(true)}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700 transition-colors font-mono font-bold text-[10px]"
+              title="Click to view What's New & Release Changelog"
+            >
+              <span>v1.3.0</span>
+              <Sparkles size={11} className="text-amber-500" />
+            </button>
+
+            <span className="hidden sm:inline">•</span>
+
+            <span className="flex items-center gap-1">
+              <Terminal size={13} className="text-amber-500" />
+              <span>Mode: <strong className="uppercase">{inputMode}</strong></span>
+            </span>
+
+            <span className="hidden sm:inline">•</span>
+            <span>Width: <strong>{width}</strong></span>
+
+            <span className="hidden md:inline">•</span>
+            <span className="hidden md:inline">Parsed Lines: <strong>{receiptData.lines.length}</strong></span>
+          </div>
+
+          <div className="flex items-center gap-3 sm:gap-4 text-[10px]">
+            <span className="hidden sm:flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+              <ShieldCheck size={13} />
+              100% Offline Local Engine
+            </span>
+
+            <span className="hidden sm:inline">•</span>
+
+            {/* Developer Attribution */}
+            <div className="flex items-center gap-1 text-neutral-600 dark:text-neutral-300 font-medium">
+              <span>Created by</span>
+              <a
+                href="https://suhail.top"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 hover:underline font-bold transition-colors"
+              >
+                <Globe size={11} />
+                Suhail Akhtar
+                <ExternalLink size={10} className="opacity-70" />
+              </a>
+            </div>
+          </div>
+        </footer>
+      )}
     </div>
   );
 }
-
-

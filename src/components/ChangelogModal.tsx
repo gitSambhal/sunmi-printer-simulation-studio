@@ -51,14 +51,34 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
 
         {/* Scrollable Changelog List */}
         <div className="p-6 overflow-y-auto space-y-6 text-xs text-neutral-600 dark:text-neutral-300">
+          {/* Version 1.3.0 */}
+          <div className="border-b border-neutral-100 dark:border-neutral-800 pb-5">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sm text-neutral-900 dark:text-neutral-100">v1.3.0</span>
+                <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-sm">
+                  Latest
+                </span>
+              </div>
+              <span className="text-neutral-400 dark:text-neutral-500 flex items-center gap-1 text-[11px]">
+                <Calendar size={12} />
+                Oct 07, 2026
+              </span>
+            </div>
+
+            <ul className="space-y-1.5 list-disc list-inside text-neutral-600 dark:text-neutral-300 leading-relaxed">
+              <li><strong className="text-neutral-800 dark:text-neutral-200">Zen Mode UI:</strong> Full clutter-free distraction-free immersion. Collapses header, footer, and borders to display 100% full-screen receipt simulation.</li>
+              <li><strong className="text-neutral-800 dark:text-neutral-200">Floating Zen HUD:</strong> Glassmorphism floating controls with instant 3D/2D switching, feed playback, width toggle, scissors cut, export suite, and keyboard shortcut support (press <kbd className="font-mono bg-neutral-100 dark:bg-neutral-800 px-1 py-0.5 rounded border border-neutral-300 dark:border-neutral-700">Z</kbd> or <kbd className="font-mono bg-neutral-100 dark:bg-neutral-800 px-1 py-0.5 rounded border border-neutral-300 dark:border-neutral-700">Esc</kbd>).</li>
+              <li><strong className="text-neutral-800 dark:text-neutral-200">Unified Single-Tab Stage:</strong> Consolidated 3D and 2D simulators into a single unified view for a cleaner, faster workflow.</li>
+              <li><strong className="text-neutral-800 dark:text-neutral-200">Direct Thermal Print:</strong> Added instant browser printing (`@media print`) directly from the export menu.</li>
+            </ul>
+          </div>
+
           {/* Version 1.2.1 */}
           <div className="border-b border-neutral-100 dark:border-neutral-800 pb-5">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <span className="font-bold text-sm text-neutral-900 dark:text-neutral-100">v1.2.1</span>
-                <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-sm">
-                  Latest
-                </span>
               </div>
               <span className="text-neutral-400 dark:text-neutral-500 flex items-center gap-1 text-[11px]">
                 <Calendar size={12} />

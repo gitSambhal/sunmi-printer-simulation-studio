@@ -50,7 +50,9 @@ export function renderReceiptToHtml(data: ReceiptData, options: RenderOptions = 
 
           let colorCss = `color: ${textColor};`;
           if (isReverse) {
-            colorCss = 'color: #ffffff; background-color: #09090b; padding: 1px 4px; font-weight: 700; border-radius: 2px;';
+            const revBg = isDark ? '#f4f4f5' : '#000000';
+            const revColor = isDark ? '#18181b' : '#ffffff';
+            colorCss = `color: ${revColor}; background-color: ${revBg}; padding: 1.5px 4px; font-weight: 700; border-radius: 2px; display: inline-block; line-height: 1.25;`;
           } else if (isRed) {
             colorCss = 'color: #dc2626; font-weight: 600;';
           }
@@ -162,7 +164,9 @@ export function renderReceiptToSvg(data: ReceiptData, options: RenderOptions = {
       const isBold = style.bold || isReverse || style.scaleX > 1 || style.scaleY > 1;
       const isItalic = style.italic;
 
-      const textColor = isReverse ? '#ffffff' : isRed ? '#dc2626' : defaultTextColor;
+      const revBg = isDark ? '#f4f4f5' : '#000000';
+      const revText = isDark ? '#18181b' : '#ffffff';
+      const textColor = isReverse ? revText : isRed ? '#dc2626' : defaultTextColor;
       const fontWeight = isBold ? '700' : '400';
       const fontStyle = isItalic ? 'italic' : 'normal';
 
@@ -170,7 +174,7 @@ export function renderReceiptToSvg(data: ReceiptData, options: RenderOptions = {
       if (isReverse) {
         const padX = 3;
         svgElements.push(
-          `<rect x="${cursorX - padX}" y="${currentY}" width="${spanPixelWidth + padX * 2}" height="${lineHeight}" fill="#09090b" rx="2"/>`
+          `<rect x="${cursorX - padX}" y="${currentY}" width="${spanPixelWidth + padX * 2}" height="${lineHeight}" fill="${revBg}" rx="2"/>`
         );
       }
 
@@ -347,11 +351,13 @@ export function renderReceiptToPngDataUrl(data: ReceiptData, options: RenderOpti
       const fontWeight = isBold ? 'bold ' : 'normal ';
       ctx.font = `${fontStyle}${fontWeight}${fontSize}px "Courier New", Courier, monospace`;
 
-      // If reverse, draw black background box
+      // If reverse, draw solid highlight box
       if (isReverse) {
-        ctx.fillStyle = '#09090b';
+        const revBg = isDark ? '#f4f4f5' : '#000000';
+        const revText = isDark ? '#18181b' : '#ffffff';
+        ctx.fillStyle = revBg;
         ctx.fillRect(cursorX - 2, currentY, spanPixelWidth + 4, lineHeight);
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = revText;
       } else if (isRed) {
         ctx.fillStyle = '#dc2626';
       } else {

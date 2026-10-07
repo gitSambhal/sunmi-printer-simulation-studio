@@ -218,9 +218,9 @@ export const Sunmi3DPrinter: React.FC<Sunmi3DPrinterProps> = ({
           ctx.font = font;
           if (span.style.reverse) {
             ctx.fillStyle = '#000000';
-            ctx.fillRect(currentX, currentY - fontSize * 0.82, spanW + 2, fontSize * 1.15);
+            ctx.fillRect(currentX - 2, currentY - fontSize * 0.85, spanW + 4, fontSize * 1.15);
             ctx.fillStyle = '#ffffff';
-            ctx.fillText(span.text, currentX + 1, currentY);
+            ctx.fillText(span.text, currentX, currentY);
           } else if (span.style.color === 'red') {
             ctx.fillStyle = '#b91c1c';
             ctx.fillText(span.text, currentX, currentY);

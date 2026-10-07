@@ -582,31 +582,36 @@ export const FlatReceiptPage: React.FC<FlatReceiptPageProps> = ({
                           const isReverse = style.reverse;
                           const isRed = style.color === 'red';
 
-                          let customClasses = '';
-                          if (isReverse) {
-                            customClasses += ' bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 px-1 py-0.5 font-bold rounded-2xs inline-block';
-                          } else if (isRed) {
-                            customClasses += ' text-rose-600 dark:text-rose-400 font-semibold';
-                          }
+                          const isMonochromeDark = paperTheme === 'monochrome-dark';
+                          const reverseBg = isMonochromeDark ? '#f4f4f5' : '#000000';
+                          const reverseColor = isMonochromeDark ? '#18181b' : '#ffffff';
+                          const defaultColor = isMonochromeDark ? '#f4f4f5' : '#111827';
 
-                          if (isBold) customClasses += ' font-bold';
-                          if (isItalic) customClasses += ' italic';
-                          if (isUnderline) customClasses += ' underline underline-offset-2';
+                          const spanStyle: React.CSSProperties = {
+                            backgroundColor: isReverse ? reverseBg : 'transparent',
+                            color: isReverse ? reverseColor : isRed ? '#dc2626' : defaultColor,
+                            fontWeight: isBold || isReverse ? 700 : 400,
+                            fontStyle: isItalic ? 'italic' : 'normal',
+                            textDecoration: isUnderline ? 'underline' : 'none',
+                            textUnderlineOffset: isUnderline ? '2px' : undefined,
+                            display: isReverse ? 'inline-block' : 'inline',
+                            padding: isReverse ? '1.5px 4px' : undefined,
+                            borderRadius: isReverse ? '2px' : undefined,
+                            lineHeight: isReverse ? '1.25' : undefined,
+                          };
 
-                          // Scaled fonts
-                          const scaleStyle: React.CSSProperties = {};
                           if (style.scaleY > 1) {
-                            scaleStyle.fontSize = `${Math.min(20, 11.5 * style.scaleY)}px`;
+                            spanStyle.fontSize = `${Math.min(22, 11.5 * style.scaleY)}px`;
                           }
                           if (style.scaleX > 1) {
-                            scaleStyle.letterSpacing = '0.08em';
+                            spanStyle.letterSpacing = '0.08em';
                           }
 
                           return (
                             <span
                               key={sIdx}
-                              style={scaleStyle}
-                              className={`whitespace-pre-wrap ${customClasses}`}
+                              style={spanStyle}
+                              className="whitespace-pre-wrap select-text"
                             >
                               {span.text}
                             </span>

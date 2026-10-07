@@ -664,19 +664,21 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
                             <span
                               key={sIdx}
                               className={`
-                                inline whitespace-pre-wrap break-all transition-colors duration-150
-                                ${spanStyle.bold ? 'font-bold' : 'font-normal'}
+                                whitespace-pre-wrap break-all transition-colors duration-150
+                                ${spanStyle.bold || isReverse ? 'font-bold' : 'font-normal'}
                                 ${spanStyle.italic ? 'italic' : ''}
                                 ${spanStyle.underline ? 'underline decoration-1 underline-offset-2' : ''}
                               `}
                               style={{
                                 fontSize,
                                 letterSpacing,
-                                fontWeight: spanStyle.bold || hasScaleX || hasScaleY ? 700 : 400,
+                                fontWeight: spanStyle.bold || hasScaleX || hasScaleY || isReverse ? 700 : 400,
                                 backgroundColor: isReverse ? '#000000' : 'transparent',
                                 color: isReverse ? '#ffffff' : isRed ? '#dc2626' : '#111827',
-                                padding: isReverse ? '1px 4px' : '0',
+                                display: isReverse ? 'inline-block' : 'inline',
+                                padding: isReverse ? '1.5px 4px' : '0',
                                 borderRadius: isReverse ? '2px' : '0',
+                                lineHeight: isReverse ? '1.25' : undefined,
                               }}
                             >
                               {span.text || '\u00A0'}

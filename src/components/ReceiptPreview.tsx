@@ -884,9 +884,11 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
                   line.align === Alignment.RIGHT ? 'text-right' : 'text-left';
 
                 const isLatestLine = !isInstantMode && idx === visibleLines.length - 1 && isPrinting;
+                const isTight = (line.lineSpacing ?? 30) <= 24;
+                const hasAnyReverse = line.spans.some((s) => s.style.reverse);
 
                 return (
-                  <div key={line.id} className="relative group/line my-[1px] w-full max-w-full">
+                  <div key={line.id} className={`relative group/line w-full max-w-full ${isTight || hasAnyReverse ? 'my-0' : 'my-[1.5px]'}`}>
                     {/* Thermal Line Sweep Highlight during active animation */}
                     {isLatestLine && (
                       <motion.div
@@ -897,7 +899,7 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
                       />
                     )}
 
-                    <div className={`w-full max-w-full overflow-hidden ${alignmentClass} min-h-[1.25em] whitespace-pre-wrap font-mono`}>
+                    <div className={`w-full max-w-full overflow-hidden ${alignmentClass} min-h-[1.15em] whitespace-pre font-mono`} style={{ lineHeight: isTight || hasAnyReverse ? '1.2' : '1.35' }}>
                       {line.spans.length === 0 ? (
                         '\u00A0'
                       ) : (
@@ -928,9 +930,9 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
                                 backgroundColor: isReverse ? '#000000' : 'transparent',
                                 color: isReverse ? '#ffffff' : isRed ? '#dc2626' : '#111827',
                                 display: isReverse ? 'inline-block' : 'inline',
-                                padding: isReverse ? '1.5px 4px' : '0',
-                                borderRadius: isReverse ? '2px' : '0',
-                                lineHeight: isReverse ? '1.25' : undefined,
+                                padding: 0,
+                                borderRadius: 0,
+                                lineHeight: isTight || isReverse ? '1.2' : undefined,
                               }}
                             >
                               {span.text || '\u00A0'}

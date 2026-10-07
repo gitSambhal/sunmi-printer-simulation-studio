@@ -34,6 +34,7 @@ export interface ReceiptLine {
   hasCutHere?: boolean;
   hasBeepHere?: boolean;
   hasDrawerHere?: boolean;
+  lineSpacing?: number;
 }
 
 export interface ControlEvent {
@@ -71,6 +72,7 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
   const lines: ReceiptLine[] = [];
   let currentLineSpans: TextSpan[] = [];
   let currentLineAlign = Alignment.LEFT;
+  let currentLineSpacing = 30; // 30 dots default line spacing (~1/6 inch)
   let currentStyle: TextStyle = { ...DEFAULT_STYLE };
   let currentText = '';
   let hasCut = false;
@@ -118,6 +120,7 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
       hasCutHere,
       hasBeepHere,
       hasDrawerHere,
+      lineSpacing: currentLineSpacing,
     });
     currentLineSpans = [];
   };
@@ -141,6 +144,7 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
         flushSpan();
         currentStyle = { ...DEFAULT_STYLE };
         currentLineAlign = Alignment.LEFT;
+        currentLineSpacing = 30;
         controlEvents.push({ type: 'reset', label: 'Printer Reset (ESC @)', lineIndex: currentLineIndex() });
         i++;
       } else if (next === 0x61) { // ESC a (Alignment)
@@ -225,9 +229,12 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
         i += 4;
       } else if (next === 0x32) { // ESC 2 (Select default line spacing ~1/6 inch)
         flushSpan();
+        currentLineSpacing = 30;
         i++;
       } else if (next === 0x33) { // ESC 3 n (Set line spacing to n dots)
         flushSpan();
+        const n = data[i + 1] ?? 30;
+        currentLineSpacing = n;
         i += 2; // ESC 3 n
       } else if (next === 0x30 || next === 0x31) { // ESC 0 / ESC 1 (Line spacing presets)
         flushSpan();

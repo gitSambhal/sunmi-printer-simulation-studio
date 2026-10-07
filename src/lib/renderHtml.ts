@@ -35,6 +35,10 @@ export function renderReceiptToHtml(data: ReceiptData, options: RenderOptions = 
 
   const linesHtml = data.lines
     .map((line) => {
+      const lineSpacing = line.lineSpacing ?? 30;
+      const isTight = lineSpacing <= 24;
+      const hasAnyReverse = line.spans.some((s) => s.style.reverse);
+
       const alignCss =
         line.align === Alignment.CENTER
           ? 'text-align: center;'
@@ -52,7 +56,7 @@ export function renderReceiptToHtml(data: ReceiptData, options: RenderOptions = 
           if (isReverse) {
             const revBg = isDark ? '#f4f4f5' : '#000000';
             const revColor = isDark ? '#18181b' : '#ffffff';
-            colorCss = `color: ${revColor}; background-color: ${revBg}; padding: 1.5px 4px; font-weight: 700; border-radius: 2px; display: inline-block; line-height: 1.25;`;
+            colorCss = `color: ${revColor}; background-color: ${revBg}; font-weight: 700; border-radius: 0; display: inline-block; line-height: 1.25;`;
           } else if (isRed) {
             colorCss = 'color: #dc2626; font-weight: 600;';
           }
@@ -68,7 +72,7 @@ export function renderReceiptToHtml(data: ReceiptData, options: RenderOptions = 
 
           const sanitized = sanitizeXmlText(span.text);
 
-          return `<span style="font-size: ${fontSize}; letter-spacing: ${letterSpacing}; ${fontCss} ${italicCss} ${colorCss} ${underlineCss} display: inline; white-space: pre-wrap; word-break: break-all;">${sanitized}</span>`;
+          return `<span style="font-size: ${fontSize}; letter-spacing: ${letterSpacing}; ${fontCss} ${italicCss} ${colorCss} ${underlineCss} display: inline; white-space: pre;">${sanitized}</span>`;
         })
         .join('');
 
@@ -88,7 +92,10 @@ export function renderReceiptToHtml(data: ReceiptData, options: RenderOptions = 
       }
 
       const lineContent = spansHtml.length > 0 ? spansHtml : '&nbsp;';
-      return `<div style="width: 100%; min-height: 1.25em; ${alignCss} margin: 1.5px 0; white-space: pre-wrap; word-break: break-all; font-family: 'Courier New', Courier, 'JetBrains Mono', monospace;">${lineContent}</div>${beepDivider}${drawerDivider}${cutDivider}`;
+      const marginVal = isTight || hasAnyReverse ? '0' : '2px 0';
+      const lineHeightVal = isTight || hasAnyReverse ? '1.2' : '1.35';
+
+      return `<div style="width: 100%; min-height: 1.2em; ${alignCss} margin: ${marginVal}; line-height: ${lineHeightVal}; white-space: pre; font-family: 'Courier New', Courier, 'JetBrains Mono', monospace;">${lineContent}</div>${beepDivider}${drawerDivider}${cutDivider}`;
     })
     .join('\n');
 
@@ -124,7 +131,7 @@ export function renderReceiptToSvg(data: ReceiptData, options: RenderOptions = {
     `<rect width="100%" height="100%" fill="${bgColor}" rx="6" stroke="${borderColor}" stroke-width="1"/>`
   );
 
-  data.lines.forEach((line, lineIdx) => {
+  data.lines.forEach((line) => {
     let maxScaleY = 1;
     let maxScaleX = 1;
     line.spans.forEach((s) => {
@@ -132,8 +139,15 @@ export function renderReceiptToSvg(data: ReceiptData, options: RenderOptions = {
       if (s.style.scaleX > maxScaleX) maxScaleX = s.style.scaleX;
     });
 
-    const lineHeight = Math.round(baseFontSize * 1.38 * maxScaleY);
-    const baselineOffset = Math.round(lineHeight * 0.76);
+    const lineSpacing = line.lineSpacing ?? 30;
+    const isTight = lineSpacing <= 24;
+    const hasAnyReverse = line.spans.some((s) => s.style.reverse);
+
+    // Line pitch: seamless contiguous block when tight or reverse
+    const linePitch = isTight
+      ? Math.round(baseFontSize * 1.22 * maxScaleY)
+      : Math.round(baseFontSize * 1.38 * maxScaleY);
+    const baselineOffset = Math.round(linePitch * 0.78);
 
     // Calculate total line width for alignment
     let totalTextLen = 0;
@@ -170,11 +184,10 @@ export function renderReceiptToSvg(data: ReceiptData, options: RenderOptions = {
       const fontWeight = isBold ? '700' : '400';
       const fontStyle = isItalic ? 'italic' : 'normal';
 
-      // If reverse, draw solid background pill
+      // If reverse, draw solid background rectangle with 0 radius so consecutive lines form a solid contiguous banner
       if (isReverse) {
-        const padX = 3;
         svgElements.push(
-          `<rect x="${cursorX - padX}" y="${currentY}" width="${spanPixelWidth + padX * 2}" height="${lineHeight}" fill="${revBg}" rx="2"/>`
+          `<rect x="${cursorX}" y="${currentY}" width="${spanPixelWidth}" height="${linePitch}" fill="${revBg}"/>`
         );
       }
 
@@ -189,14 +202,14 @@ export function renderReceiptToSvg(data: ReceiptData, options: RenderOptions = {
       // If underline, draw line beneath text
       if (style.underline) {
         svgElements.push(
-          `<line x1="${cursorX}" y1="${currentY + lineHeight - 1}" x2="${cursorX + spanPixelWidth}" y2="${currentY + lineHeight - 1}" stroke="${textColor}" stroke-width="1.2"/>`
+          `<line x1="${cursorX}" y1="${currentY + linePitch - 1}" x2="${cursorX + spanPixelWidth}" y2="${currentY + linePitch - 1}" stroke="${textColor}" stroke-width="1.2"/>`
         );
       }
 
       cursorX += spanPixelWidth;
     });
 
-    currentY += lineHeight + 2;
+    currentY += linePitch;
 
     // Hardware Event Dividers
     if (line.hasBeepHere) {
@@ -270,14 +283,20 @@ export function renderReceiptToPngDataUrl(data: ReceiptData, options: RenderOpti
   const baseFontSize = is58 ? 12 : 13;
   const approxCharWidth = baseFontSize * 0.602;
 
-  // First pass: Calculate canvas height
+  // First pass: Calculate canvas height with seamless line pitch
   let totalHeight = paddingY * 2;
   data.lines.forEach((line) => {
     let maxScaleY = 1;
     line.spans.forEach((s) => {
       if (s.style.scaleY > maxScaleY) maxScaleY = s.style.scaleY;
     });
-    totalHeight += Math.round(baseFontSize * 1.38 * maxScaleY) + 2;
+    const lineSpacing = line.lineSpacing ?? 30;
+    const isTight = lineSpacing <= 24;
+    const linePitch = isTight
+      ? Math.round(baseFontSize * 1.22 * maxScaleY)
+      : Math.round(baseFontSize * 1.38 * maxScaleY);
+
+    totalHeight += linePitch;
     if (line.hasBeepHere) totalHeight += 16;
     if (line.hasDrawerHere) totalHeight += 16;
     if (line.hasCutHere) totalHeight += 20;
@@ -315,8 +334,12 @@ export function renderReceiptToPngDataUrl(data: ReceiptData, options: RenderOpti
       if (s.style.scaleX > maxScaleX) maxScaleX = s.style.scaleX;
     });
 
-    const lineHeight = Math.round(baseFontSize * 1.38 * maxScaleY);
-    const baselineOffset = Math.round(lineHeight * 0.76);
+    const lineSpacing = line.lineSpacing ?? 30;
+    const isTight = lineSpacing <= 24;
+    const linePitch = isTight
+      ? Math.round(baseFontSize * 1.22 * maxScaleY)
+      : Math.round(baseFontSize * 1.38 * maxScaleY);
+    const baselineOffset = Math.round(linePitch * 0.78);
 
     // Calculate total line text width for alignment
     let totalTextLen = 0;
@@ -351,12 +374,12 @@ export function renderReceiptToPngDataUrl(data: ReceiptData, options: RenderOpti
       const fontWeight = isBold ? 'bold ' : 'normal ';
       ctx.font = `${fontStyle}${fontWeight}${fontSize}px "Courier New", Courier, monospace`;
 
-      // If reverse, draw solid highlight box
+      // If reverse, fill full linePitch height with 0 radius so lines connect seamlessly with no gap!
       if (isReverse) {
         const revBg = isDark ? '#f4f4f5' : '#000000';
         const revText = isDark ? '#18181b' : '#ffffff';
         ctx.fillStyle = revBg;
-        ctx.fillRect(cursorX - 2, currentY, spanPixelWidth + 4, lineHeight);
+        ctx.fillRect(cursorX, currentY, spanPixelWidth, linePitch);
         ctx.fillStyle = revText;
       } else if (isRed) {
         ctx.fillStyle = '#dc2626';
@@ -370,15 +393,15 @@ export function renderReceiptToPngDataUrl(data: ReceiptData, options: RenderOpti
         ctx.strokeStyle = ctx.fillStyle;
         ctx.lineWidth = 1.2;
         ctx.beginPath();
-        ctx.moveTo(cursorX, currentY + lineHeight - 1);
-        ctx.lineTo(cursorX + spanPixelWidth, currentY + lineHeight - 1);
+        ctx.moveTo(cursorX, currentY + linePitch - 1);
+        ctx.lineTo(cursorX + spanPixelWidth, currentY + linePitch - 1);
         ctx.stroke();
       }
 
       cursorX += spanPixelWidth;
     });
 
-    currentY += lineHeight + 2;
+    currentY += linePitch;
 
     // Hardware Event Dividers
     if (line.hasBeepHere) {

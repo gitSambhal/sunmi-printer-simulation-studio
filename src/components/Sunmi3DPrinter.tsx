@@ -143,7 +143,11 @@ export const Sunmi3DPrinter: React.FC<Sunmi3DPrinterProps> = ({
         else if (isDoubleHeight) fontSize = 48;
         else if (isDoubleWidth) fontSize = 42;
 
-        contentHeightPx += fontSize * 1.35;
+        const isTight = (line.lineSpacing ?? 30) <= 24;
+        const hasAnyReverse = line.spans.some((s) => s.style.reverse);
+        const linePitch = isTight || hasAnyReverse ? fontSize * 1.18 : fontSize * 1.35;
+
+        contentHeightPx += linePitch;
         if (line.hasCutHere) {
           contentHeightPx += 45;
         }
@@ -177,7 +181,6 @@ export const Sunmi3DPrinter: React.FC<Sunmi3DPrinterProps> = ({
     activeLines.forEach((line) => {
       ctx.save();
 
-      const firstSpan = line.spans[0];
       const isUnderline = line.spans.some((s) => s.style.underline);
       const isRed = line.spans.some((s) => s.style.color === 'red');
 
@@ -189,12 +192,14 @@ export const Sunmi3DPrinter: React.FC<Sunmi3DPrinterProps> = ({
       else if (isDoubleHeight) fontSize = 48;
       else if (isDoubleWidth) fontSize = 42;
 
-      currentY += fontSize * 0.85;
+      const isTight = (line.lineSpacing ?? 30) <= 24;
+      const hasAnyReverse = line.spans.some((s) => s.style.reverse);
+      const linePitch = isTight || hasAnyReverse ? fontSize * 1.18 : fontSize * 1.35;
 
       if (line.spans.length > 0) {
         let totalLineWidth = 0;
         const measuredSpans = line.spans.map((span) => {
-          const isSpanBold = span.style.bold || span.style.doubleWidth || span.style.scaleX > 1;
+          const isSpanBold = span.style.bold || span.style.doubleWidth || span.style.scaleX > 1 || span.style.reverse;
           const isSpanItalic = span.style.italic;
           const fontItalic = isSpanItalic ? 'italic ' : '';
           const fontWeight = isSpanBold ? '700 ' : '400 ';
@@ -218,15 +223,15 @@ export const Sunmi3DPrinter: React.FC<Sunmi3DPrinterProps> = ({
           ctx.font = font;
           if (span.style.reverse) {
             ctx.fillStyle = '#000000';
-            ctx.fillRect(currentX - 2, currentY - fontSize * 0.85, spanW + 4, fontSize * 1.15);
+            ctx.fillRect(currentX, currentY, spanW, linePitch);
             ctx.fillStyle = '#ffffff';
-            ctx.fillText(span.text, currentX, currentY);
+            ctx.fillText(span.text, currentX, currentY + fontSize * 0.88);
           } else if (span.style.color === 'red') {
             ctx.fillStyle = '#b91c1c';
-            ctx.fillText(span.text, currentX, currentY);
+            ctx.fillText(span.text, currentX, currentY + fontSize * 0.88);
           } else {
             ctx.fillStyle = '#000000';
-            ctx.fillText(span.text, currentX, currentY);
+            ctx.fillText(span.text, currentX, currentY + fontSize * 0.88);
           }
           currentX += spanW;
         });
@@ -234,10 +239,10 @@ export const Sunmi3DPrinter: React.FC<Sunmi3DPrinterProps> = ({
 
       if (isUnderline) {
         ctx.fillStyle = isRed ? '#b91c1c' : '#000000';
-        ctx.fillRect(marginPx, currentY + 6, maxPrintableWidth, 3);
+        ctx.fillRect(marginPx, currentY + linePitch - 4, maxPrintableWidth, 3);
       }
 
-      currentY += fontSize * 0.5;
+      currentY += linePitch;
 
       if (line.hasCutHere) {
         ctx.setLineDash([12, 10]);

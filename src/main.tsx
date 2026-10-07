@@ -2,29 +2,32 @@ import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
-import { registerApiInterceptor } from './lib/apiInterceptor.ts';
+import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 
-// Register Client-side API Interceptor for 100% serverless / Netlify static API compatibility
-registerApiInterceptor();
-
-// Register Service Worker for PWA Offline Support & API Interception
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').then(
-      (registration) => {
-        console.log('Sunmi Studio ServiceWorker registered with scope:', registration.scope);
-      },
-      (err) => {
-        console.log('Sunmi Studio ServiceWorker registration failed:', err);
-      }
-    );
-  });
+// Aggressively purge any stale service workers and caches from previous versions to eliminate white-screen loops
+if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (const registration of registrations) {
+      registration.unregister();
+    }
+  }).catch(() => {});
 }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+if (typeof window !== 'undefined' && 'caches' in window) {
+  caches.keys().then((names) => {
+    for (const name of names) {
+      caches.delete(name);
+    }
+  }).catch(() => {});
+}
 
-
+const rootElement = document.getElementById('root');
+if (rootElement) {
+  createRoot(rootElement).render(
+    <StrictMode>
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    </StrictMode>,
+  );
+}

@@ -30,23 +30,52 @@ export function registerApiInterceptor() {
     const urlStr = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
 
     // Only intercept local relative /api/, /v2/printer/, /sunmi, /docs, /openapi.json, or Sunmi routes
+    let urlObj: URL;
+    try {
+      urlObj = new URL(urlStr, window.location.origin);
+    } catch {
+      return originalFetch.apply(window, [input, init]);
+    }
+
+    const pathname = urlObj.pathname;
+    const lowerPath = pathname.toLowerCase();
+
+    // Never intercept scripts, stylesheets, fonts, or Vite internal files
     if (
-      urlStr.includes('/api/') ||
-      urlStr.includes('/v2/printer/') ||
-      urlStr.includes('/sunmi') ||
-      urlStr.includes('bind') ||
-      urlStr.includes('online') ||
-      urlStr.includes('print') ||
-      urlStr.includes('push') ||
-      urlStr.includes('/render-receipt') ||
-      urlStr.includes('/render-image') ||
-      urlStr.includes('/docs') ||
-      urlStr.includes('openapi.json')
+      lowerPath.endsWith('.js') ||
+      lowerPath.endsWith('.ts') ||
+      lowerPath.endsWith('.tsx') ||
+      lowerPath.endsWith('.css') ||
+      lowerPath.endsWith('.svg') ||
+      lowerPath.endsWith('.png') ||
+      lowerPath.endsWith('.woff') ||
+      lowerPath.endsWith('.woff2') ||
+      lowerPath.startsWith('/@vite') ||
+      lowerPath.startsWith('/@fs') ||
+      lowerPath.startsWith('/src/')
     ) {
+      return originalFetch.apply(window, [input, init]);
+    }
+
+    const isApiTarget =
+      lowerPath.startsWith('/api/') ||
+      lowerPath.startsWith('/v2/printer/') ||
+      lowerPath.startsWith('/sunmi/') ||
+      lowerPath.startsWith('/docs') ||
+      lowerPath === '/openapi.json' ||
+      lowerPath.startsWith('/render-receipt') ||
+      lowerPath.startsWith('/render-image') ||
+      lowerPath.endsWith('/bindshop') ||
+      lowerPath.endsWith('/unbindshop') ||
+      lowerPath.endsWith('/onlinestatus') ||
+      lowerPath.includes('/online-status') ||
+      lowerPath.endsWith('/printstatus') ||
+      lowerPath.includes('/print-status') ||
+      lowerPath.endsWith('/pushcontent') ||
+      lowerPath.includes('/push-content');
+
+    if (isApiTarget) {
       try {
-        const urlObj = new URL(urlStr, window.location.origin);
-        const pathname = urlObj.pathname;
-        const lowerPath = pathname.toLowerCase();
 
         // Route 1: Health check
         if (pathname.endsWith('/api/health') || pathname.endsWith('/health')) {

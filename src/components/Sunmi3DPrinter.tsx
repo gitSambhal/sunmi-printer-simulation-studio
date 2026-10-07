@@ -12,6 +12,7 @@ interface Sunmi3DPrinterProps {
   activeCutAnimation: boolean;
   requestedCameraPreset?: 'macro' | '3/4' | 'front' | 'top' | 'floor';
   onTriggerCut?: () => void;
+  onSwitchTo2D?: () => void;
 }
 
 interface FallingPaper {
@@ -34,6 +35,7 @@ export const Sunmi3DPrinter: React.FC<Sunmi3DPrinterProps> = ({
   activeCutAnimation,
   requestedCameraPreset,
   onTriggerCut,
+  onSwitchTo2D,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const textureCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -56,6 +58,7 @@ export const Sunmi3DPrinter: React.FC<Sunmi3DPrinterProps> = ({
 
   const fallingPapersRef = useRef<FallingPaper[]>([]);
 
+  const [webGlError, setWebGlError] = useState<string | null>(null);
   const [isHatchOpen, setIsHatchOpen] = useState(false);
   const [cameraPreset, setCameraPreset] = useState<'3/4' | 'macro' | 'front' | 'top' | 'floor'>('macro');
   const [isBrightStudio, setIsBrightStudio] = useState(() => {
@@ -261,13 +264,18 @@ export const Sunmi3DPrinter: React.FC<Sunmi3DPrinterProps> = ({
   useEffect(() => {
     if (!mountRef.current) return;
 
-    const container = mountRef.current;
-    const widthPx = container.clientWidth || 800;
-    const heightPx = container.clientHeight || 600;
+    let animationFrameId: number | undefined;
+    let resizeObserver: ResizeObserver | undefined;
+    let handleResize: (() => void) | undefined;
 
-    // 1. Scene
-    const scene = new THREE.Scene();
-    sceneRef.current = scene;
+    try {
+      const container = mountRef.current;
+      const widthPx = container.clientWidth || 800;
+      const heightPx = container.clientHeight || 600;
+
+      // 1. Scene
+      const scene = new THREE.Scene();
+      sceneRef.current = scene;
 
     const studioBgColor = isBrightStudio ? 0xf1f5f9 : 0x181a20; // Crisp light slate vs dark studio
     scene.background = new THREE.Color(studioBgColor);
@@ -607,8 +615,7 @@ export const Sunmi3DPrinter: React.FC<Sunmi3DPrinterProps> = ({
     // -------------------------------------------------------------
     // ANIMATION RENDER LOOP
     // -------------------------------------------------------------
-    let animationFrameId: number;
-    let clock = new THREE.Clock();
+    const clock = new THREE.Clock();
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
@@ -703,7 +710,7 @@ export const Sunmi3DPrinter: React.FC<Sunmi3DPrinterProps> = ({
     animate();
 
     // Responsive Container Sizing & Resize Observer
-    const handleResize = () => {
+    handleResize = () => {
       if (!mountRef.current || !rendererRef.current || !cameraRef.current) return;
       const w = mountRef.current.clientWidth || 800;
       const h = mountRef.current.clientHeight || 600;
@@ -719,17 +726,21 @@ export const Sunmi3DPrinter: React.FC<Sunmi3DPrinterProps> = ({
     renderer.render(scene, camera);
 
     // Continuous resize observer for container expansion/flexbox settling
-    const resizeObserver = new ResizeObserver(() => {
-      handleResize();
+    resizeObserver = new ResizeObserver(() => {
+      if (handleResize) handleResize();
     });
     resizeObserver.observe(container);
 
     window.addEventListener('resize', handleResize);
+    } catch (err: any) {
+      console.warn('Three.js / WebGL initialization caught error:', err);
+      setWebGlError(err?.message || 'WebGL acceleration not available');
+    }
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
-      window.removeEventListener('resize', handleResize);
-      resizeObserver.disconnect();
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+      if (handleResize) window.removeEventListener('resize', handleResize);
+      if (resizeObserver) resizeObserver.disconnect();
 
       // Clean up falling paper meshes
       fallingPapersRef.current.forEach((item) => {
@@ -740,7 +751,10 @@ export const Sunmi3DPrinter: React.FC<Sunmi3DPrinterProps> = ({
       fallingPapersRef.current = [];
 
       if (rendererRef.current && rendererRef.current.domElement) {
-        rendererRef.current.domElement.remove();
+        try {
+          rendererRef.current.dispose();
+          rendererRef.current.domElement.remove();
+        } catch {}
       }
     };
   }, [width]);
@@ -981,6 +995,31 @@ export const Sunmi3DPrinter: React.FC<Sunmi3DPrinterProps> = ({
     <div className="w-full h-full relative flex flex-col bg-neutral-950 overflow-hidden select-none">
       {/* 3D WebGL Canvas Render Stage */}
       <div ref={mountRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
+
+      {/* WebGL Error Fallback Overlay */}
+      {webGlError && (
+        <div className="absolute inset-0 bg-neutral-950/95 flex flex-col items-center justify-center p-6 text-center z-50 text-neutral-200">
+          <div className="p-3 bg-amber-500/10 text-amber-400 rounded-xl mb-3 border border-amber-500/20">
+            <Layers size={28} />
+          </div>
+          <h3 className="text-sm font-bold text-white mb-1.5">3D WebGL Mode Unavailable</h3>
+          <p className="text-xs text-neutral-400 max-w-sm mb-4 leading-relaxed">
+            Hardware acceleration is disabled or unsupported in this browser/sandbox. You can switch to the crisp 2D Flat Receipt view.
+          </p>
+          {onSwitchTo2D && (
+            <button
+              onClick={onSwitchTo2D}
+              className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-xs transition-colors mb-4 flex items-center gap-2"
+            >
+              <FileText size={14} />
+              <span>Switch to Flat Receipt View</span>
+            </button>
+          )}
+          <div className="text-[10px] font-mono text-neutral-500 bg-neutral-900 px-3 py-1.5 rounded-lg border border-neutral-800">
+            {webGlError}
+          </div>
+        </div>
+      )}
 
       {/* Well-Organized Floating Top Control Bar */}
       <div className="absolute top-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-3 pointer-events-none">

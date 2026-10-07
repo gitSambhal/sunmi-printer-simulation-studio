@@ -1,7 +1,20 @@
+/**
+ * Sunmi Printer Simulation Studio & Flat Receipt Engine
+ * Created by Suhail Akhtar (https://suhail.top)
+ */
+
 import React, { useState, useEffect, useMemo } from 'react';
-import { Sun, Moon, Printer, Terminal, ShieldCheck, Download, Wifi, WifiOff, Globe, ExternalLink, Smartphone, PanelLeftClose, PanelLeftOpen, GripVertical } from 'lucide-react';
+import { 
+  Sun, Moon, Printer, Terminal, ShieldCheck, Download, 
+  Wifi, WifiOff, Globe, ExternalLink, Smartphone, 
+  PanelLeftClose, PanelLeftOpen, GripVertical, FileText, 
+  Sparkles, Layers
+} from 'lucide-react';
 import { RawInput } from './components/RawInput';
 import { ReceiptPreview } from './components/ReceiptPreview';
+import { FlatReceiptPage } from './components/FlatReceiptPage';
+import { ToastContainer, ToastItem, ToastType } from './components/Toast';
+import { ChangelogModal } from './components/ChangelogModal';
 import { parseEscPos, textToBytes, escapedStringToBytes } from './lib/escpos';
 
 const EXAMPLES = {
@@ -13,6 +26,15 @@ const EXAMPLES = {
 };
 
 export default function App() {
+  const [activeTab, setActiveTab] = useState<'studio' | 'receipt'>(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash.toLowerCase();
+      const search = window.location.search.toLowerCase();
+      if (hash.includes('receipt') || search.includes('receipt')) return 'receipt';
+    }
+    return 'studio';
+  });
+
   const [inputValue, setInputValue] = useState<string>(EXAMPLES.complex);
   const [inputMode, setInputMode] = useState<'text' | 'raw'>('raw');
   const [width, setWidth] = useState<'58mm' | '80mm'>('80mm');
@@ -21,7 +43,6 @@ export default function App() {
   const [sidebarWidth, setSidebarWidth] = useState<number>(360);
   const [sidebarHeight, setSidebarHeight] = useState<number>(240);
   const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [mobileView, setMobileView] = useState<'printer' | 'editor' | 'split'>('printer');
   const [isDesktop, setIsDesktop] = useState<boolean>(typeof window !== 'undefined' ? window.innerWidth >= 768 : true);
   
   // Online / Offline State
@@ -30,6 +51,44 @@ export default function App() {
   // PWA Install Prompt State
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isAppInstalled, setIsAppInstalled] = useState<boolean>(false);
+
+  // Toast notifications & Changelog
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [isChangelogOpen, setIsChangelogOpen] = useState<boolean>(false);
+
+  const addToast = (message: string, type: ToastType = 'info') => {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3200);
+  };
+
+  const dismissToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  // Sync Hash on view change
+  const handleTabChange = (newTab: 'studio' | 'receipt') => {
+    setActiveTab(newTab);
+    if (typeof window !== 'undefined') {
+      window.location.hash = newTab === 'receipt' ? '#/receipt' : '#/studio';
+    }
+  };
+
+  // Listen for hashchange
+  useEffect(() => {
+    const handleHash = () => {
+      const hash = window.location.hash.toLowerCase();
+      if (hash.includes('receipt')) {
+        setActiveTab('receipt');
+      } else if (hash.includes('studio')) {
+        setActiveTab('studio');
+      }
+    };
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
 
   // Monitor Window Resize for Desktop/Tablet vs Mobile Layout
   useEffect(() => {
@@ -94,8 +153,14 @@ export default function App() {
 
   // Online / Offline status listeners
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
+    const handleOnline = () => {
+      setIsOnline(true);
+      addToast('Back online — Network synchronized', 'info');
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      addToast('Offline mode active — 100% local engine running', 'warning');
+    };
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -116,6 +181,7 @@ export default function App() {
     const handleAppInstalled = () => {
       setIsAppInstalled(true);
       setDeferredPrompt(null);
+      addToast('App installed successfully to your device!', 'success');
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -147,6 +213,7 @@ export default function App() {
     } else {
       setInputValue(presetText);
     }
+    addToast('Preset loaded into editor', 'info');
   };
 
   const handleModeChange = (newMode: 'text' | 'raw') => {
@@ -202,18 +269,21 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 transition-colors duration-300 font-sans">
+      {/* Toast Notification Container */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+      {/* Changelog Modal */}
+      <ChangelogModal isOpen={isChangelogOpen} onClose={() => setIsChangelogOpen(false)} />
+
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-3 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 z-30">
+      <header className="flex items-center justify-between px-4 sm:px-6 py-2.5 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 z-30 shrink-0 gap-3">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-amber-500 rounded-lg text-white shadow-xs">
-            <Printer size={20} />
+          <div className="p-2 bg-amber-500 rounded-lg text-white shadow-xs shrink-0">
+            <Printer size={19} />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base font-bold tracking-tight">Sunmi Printer Simulation Studio</h1>
-              <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold">
-                ESC/POS v2.0
-              </span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-sm sm:text-base font-bold tracking-tight">Sunmi Printer Studio</h1>
               {/* Online / Offline Indicator Badge */}
               <span
                 className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-colors ${
@@ -224,47 +294,66 @@ export default function App() {
                 title={isOnline ? 'Online - Local & API services active' : 'Offline Mode Active - 100% Local Engine Running'}
               >
                 {isOnline ? <Wifi size={11} /> : <WifiOff size={11} />}
-                {isOnline ? 'Online' : 'Offline Ready'}
+                <span className="hidden sm:inline">{isOnline ? 'Online' : 'Offline Ready'}</span>
               </span>
             </div>
-            <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
-              Professional ESC/POS &amp; Sunmi Cloud Thermal Printer Emulator with Escape Code Parsing &amp; SVG/PNG Exports
+            <p className="text-[10.5px] text-neutral-500 dark:text-neutral-400 hidden sm:block">
+              Professional ESC/POS &amp; Sunmi Cloud Thermal Printer Emulator
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Sidebar Toggle Button */}
+        {/* Center: Main View Mode Switcher (Studio vs Flat Receipt) */}
+        <div className="flex items-center bg-neutral-100 dark:bg-neutral-800 p-1 rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-2xs">
           <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className={`px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 text-xs font-semibold ${
-              isSidebarOpen
-                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
-                : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+            onClick={() => handleTabChange('studio')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              activeTab === 'studio'
+                ? 'bg-white dark:bg-neutral-700 shadow-xs text-neutral-900 dark:text-white'
+                : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
             }`}
-            title={isSidebarOpen ? 'Collapse Editor Sidebar' : 'Expand Editor Sidebar'}
+            title="3D Sunmi Terminal Simulator & Raw ESC/POS Studio"
           >
-            {isSidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
-            <span className="hidden sm:inline">{isSidebarOpen ? 'Hide Editor' : 'Show Editor'}</span>
+            <Layers size={13} className={activeTab === 'studio' ? 'text-amber-500' : ''} />
+            <span>3D Studio</span>
           </button>
+          <button
+            onClick={() => handleTabChange('receipt')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              activeTab === 'receipt'
+                ? 'bg-white dark:bg-neutral-700 shadow-xs text-neutral-900 dark:text-white'
+                : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+            }`}
+            title="Clean, Distraction-Free Flat Receipt Page with Export Suite"
+          >
+            <FileText size={13} className={activeTab === 'receipt' ? 'text-amber-500' : ''} />
+            <span>Flat Receipt</span>
+          </button>
+        </div>
 
-          {/* PWA Install Button */}
-          {deferredPrompt && (
+        {/* Right Action Group */}
+        <div className="flex items-center gap-2 sm:gap-2.5">
+          {/* Sidebar Toggle Button (when in studio mode) */}
+          {activeTab === 'studio' && (
             <button
-              onClick={handleInstallClick}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold text-xs rounded-lg shadow-xs transition-all animate-bounce"
-              title="Install as App on Desktop or Mobile"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className={`px-2.5 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 text-xs font-semibold ${
+                isSidebarOpen
+                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                  : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+              }`}
+              title={isSidebarOpen ? 'Collapse Editor Sidebar' : 'Expand Editor Sidebar'}
             >
-              <Smartphone size={14} />
-              <span>Install App</span>
+              {isSidebarOpen ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}
+              <span className="hidden md:inline">{isSidebarOpen ? 'Hide Editor' : 'Show Editor'}</span>
             </button>
           )}
 
           {/* Paper Width Selector */}
-          <div className="flex items-center bg-neutral-100 dark:bg-neutral-800 p-1 rounded-lg border border-neutral-200 dark:border-neutral-700">
+          <div className="flex items-center bg-neutral-100 dark:bg-neutral-800 p-0.5 rounded-lg border border-neutral-200 dark:border-neutral-700">
             <button
               onClick={() => setWidth('58mm')}
-              className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
                 width === '58mm'
                   ? 'bg-white dark:bg-neutral-700 shadow-xs text-neutral-900 dark:text-white'
                   : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
@@ -274,7 +363,7 @@ export default function App() {
             </button>
             <button
               onClick={() => setWidth('80mm')}
-              className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
                 width === '80mm'
                   ? 'bg-white dark:bg-neutral-700 shadow-xs text-neutral-900 dark:text-white'
                   : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
@@ -284,110 +373,150 @@ export default function App() {
             </button>
           </div>
 
+          {/* PWA Install Button */}
+          {deferredPrompt && (
+            <button
+              onClick={handleInstallClick}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold text-xs rounded-lg shadow-xs transition-all animate-bounce"
+              title="Install as App on Desktop or Mobile"
+            >
+              <Smartphone size={13} />
+              <span className="hidden sm:inline">Install App</span>
+            </button>
+          )}
+
           {/* Dark Mode Toggle */}
           <button
             onClick={() => setIsDarkMode(!isDarkMode)}
-            className="p-2 rounded-lg border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors text-neutral-600 dark:text-neutral-300"
+            className="p-1.5 sm:p-2 rounded-lg border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors text-neutral-600 dark:text-neutral-300"
             title="Toggle Dark Mode"
+            aria-label="Toggle dark mode"
           >
-            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            {isDarkMode ? <Sun size={17} /> : <Moon size={17} />}
           </button>
         </div>
       </header>
 
-      {/* Drag Overlay Backdrop during resizing */}
-      {isDragging && (
-        <div
-          className="fixed inset-0 z-50 select-none"
-          style={{ cursor: isDesktop ? 'col-resize' : 'row-resize' }}
+      {/* Main Content Area */}
+      {activeTab === 'receipt' ? (
+        /* Flat Receipt View */
+        <FlatReceiptPage
+          data={receiptData}
+          rawString={inputValue}
+          width={width}
+          onWidthChange={setWidth}
+          onRawStringChange={setInputValue}
+          onShowToast={addToast}
         />
+      ) : (
+        /* Studio View */
+        <main className={`flex-1 flex overflow-hidden relative flex-col md:flex-row ${isDragging ? 'select-none' : ''}`}>
+          {/* Drag Overlay Backdrop during resizing */}
+          {isDragging && (
+            <div
+              className="fixed inset-0 z-50 select-none"
+              style={{ cursor: isDesktop ? 'col-resize' : 'row-resize' }}
+            />
+          )}
+
+          {/* Editor Sidebar */}
+          <aside
+            style={
+              isSidebarOpen
+                ? isDesktop
+                  ? { width: `${sidebarWidth}px`, height: '100%' }
+                  : { width: '100%', height: `${sidebarHeight}px` }
+                : isDesktop
+                ? { width: 0, height: '100%' }
+                : { width: '100%', height: 0 }
+            }
+            className={`flex flex-col bg-white dark:bg-neutral-900 border-b md:border-b-0 md:border-r border-neutral-200 dark:border-neutral-800 shrink-0 transition-[opacity] duration-150 ${
+              isSidebarOpen ? 'opacity-100 overflow-hidden' : 'opacity-0 overflow-hidden border-0 pointer-events-none'
+            }`}
+          >
+            <RawInput
+              value={inputValue}
+              onChange={setInputValue}
+              mode={inputMode}
+              onModeChange={handleModeChange}
+              onClear={() => setInputValue('')}
+              onLoadPreset={handleLoadPreset}
+            />
+          </aside>
+
+          {/* Draggable Resizer Bar */}
+          {isSidebarOpen && (
+            <div
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+              }}
+              onTouchStart={() => setIsDragging(true)}
+              className={`z-20 flex items-center justify-center transition-colors group select-none shrink-0 ${
+                isDesktop
+                  ? 'w-2 hover:w-2.5 cursor-col-resize h-full border-r border-neutral-200 dark:border-neutral-800'
+                  : 'h-2.5 w-full cursor-row-resize border-b border-neutral-200 dark:border-neutral-800'
+              } ${
+                isDragging
+                  ? 'bg-amber-500'
+                  : 'bg-neutral-200 dark:bg-neutral-800 hover:bg-amber-500/80 dark:hover:bg-amber-500/80'
+              }`}
+              title={isDesktop ? 'Drag horizontally to resize editor width' : 'Drag vertically to resize editor height'}
+            >
+              <GripVertical
+                size={12}
+                className={`text-neutral-500 group-hover:text-white transition-all ${
+                  isDesktop ? 'rotate-0' : 'rotate-90'
+                } ${isDragging ? 'opacity-100 text-white' : 'opacity-50 group-hover:opacity-100'}`}
+              />
+            </div>
+          )}
+
+          {/* Main Printer Visualizer Stage */}
+          <section className="flex-1 h-full min-w-0 min-h-0 bg-neutral-100 dark:bg-neutral-950 relative flex flex-col overflow-hidden">
+            <ReceiptPreview data={receiptData} width={width} rawString={inputValue} />
+          </section>
+        </main>
       )}
 
-      {/* Main App Layout */}
-      <main className={`flex-1 flex overflow-hidden relative flex-col md:flex-row ${isDragging ? 'select-none' : ''}`}>
-        {/* Editor Sidebar */}
-        <aside
-          style={
-            isSidebarOpen
-              ? isDesktop
-                ? { width: `${sidebarWidth}px`, height: '100%' }
-                : { width: '100%', height: `${sidebarHeight}px` }
-              : isDesktop
-              ? { width: 0, height: '100%' }
-              : { width: '100%', height: 0 }
-          }
-          className={`flex flex-col bg-white dark:bg-neutral-900 border-b md:border-b-0 md:border-r border-neutral-200 dark:border-neutral-800 shrink-0 transition-[opacity] duration-150 ${
-            isSidebarOpen ? 'opacity-100 overflow-hidden' : 'opacity-0 overflow-hidden border-0 pointer-events-none'
-          }`}
-        >
-          <RawInput
-            value={inputValue}
-            onChange={setInputValue}
-            mode={inputMode}
-            onModeChange={handleModeChange}
-            onClear={() => setInputValue('')}
-            onLoadPreset={handleLoadPreset}
-          />
-        </aside>
-
-        {/* Draggable Resizer Bar */}
-        {isSidebarOpen && (
-          <div
-            onMouseDown={(e) => {
-              e.preventDefault();
-              setIsDragging(true);
-            }}
-            onTouchStart={() => setIsDragging(true)}
-            className={`z-20 flex items-center justify-center transition-colors group select-none shrink-0 ${
-              isDesktop
-                ? 'w-2 hover:w-2.5 cursor-col-resize h-full border-r border-neutral-200 dark:border-neutral-800'
-                : 'h-2.5 w-full cursor-row-resize border-b border-neutral-200 dark:border-neutral-800'
-            } ${
-              isDragging
-                ? 'bg-amber-500'
-                : 'bg-neutral-200 dark:bg-neutral-800 hover:bg-amber-500/80 dark:hover:bg-amber-500/80'
-            }`}
-            title={isDesktop ? "Drag horizontally to resize editor width" : "Drag vertically to resize editor height"}
-          >
-            <GripVertical
-              size={12}
-              className={`text-neutral-500 group-hover:text-white transition-all ${
-                isDesktop ? 'rotate-0' : 'rotate-90'
-              } ${isDragging ? 'opacity-100 text-white' : 'opacity-50 group-hover:opacity-100'}`}
-            />
-          </div>
-        )}
-
-        {/* Main Printer Visualizer Stage */}
-        <section className="flex-1 h-full min-w-0 min-h-0 bg-neutral-100 dark:bg-neutral-950 relative flex flex-col overflow-hidden">
-          <ReceiptPreview data={receiptData} width={width} rawString={inputValue} />
-        </section>
-      </main>
-
       {/* Footer Info Bar */}
-      <footer className="px-6 py-2 border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex justify-between items-center text-[11px] text-neutral-500 dark:text-neutral-400 font-medium">
-        <div className="flex items-center gap-4">
+      <footer className="px-4 sm:px-6 py-2 border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex justify-between items-center text-[11px] text-neutral-500 dark:text-neutral-400 font-medium shrink-0">
+        <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+          {/* What's New Version Button */}
+          <button
+            onClick={() => setIsChangelogOpen(true)}
+            className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700 transition-colors font-mono font-bold text-[10px]"
+            title="Click to view What's New & Release Changelog"
+          >
+            <span>v1.2.1</span>
+            <Sparkles size={11} className="text-amber-500" />
+          </button>
+
+          <span className="hidden sm:inline">•</span>
+
           <span className="flex items-center gap-1">
-            <Terminal size={14} className="text-amber-500" />
+            <Terminal size={13} className="text-amber-500" />
             <span>Mode: <strong className="uppercase">{inputMode}</strong></span>
           </span>
-          <span>•</span>
+
+          <span className="hidden sm:inline">•</span>
           <span>Width: <strong>{width}</strong></span>
-          <span>•</span>
-          <span>Parsed Lines: <strong>{receiptData.lines.length}</strong></span>
+
+          <span className="hidden md:inline">•</span>
+          <span className="hidden md:inline">Parsed Lines: <strong>{receiptData.lines.length}</strong></span>
         </div>
 
-        <div className="flex items-center gap-4 text-[10px]">
-          <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+        <div className="flex items-center gap-3 sm:gap-4 text-[10px]">
+          <span className="hidden sm:flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
             <ShieldCheck size={13} />
             100% Offline Local Engine
           </span>
 
-          <span>•</span>
+          <span className="hidden sm:inline">•</span>
 
           {/* Developer Attribution */}
-          <div className="flex items-center gap-1 text-neutral-600 dark:text-neutral-300 font-semibold">
-            <span>Developed by</span>
+          <div className="flex items-center gap-1 text-neutral-600 dark:text-neutral-300 font-medium">
+            <span>Created by</span>
             <a
               href="https://suhail.top"
               target="_blank"
@@ -404,4 +533,5 @@ export default function App() {
     </div>
   );
 }
+
 

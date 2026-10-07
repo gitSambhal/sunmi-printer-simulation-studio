@@ -9,7 +9,7 @@ import {
 import { toPng, toSvg } from 'html-to-image';
 import { ReceiptData, Alignment } from '../lib/escpos';
 import { printerAudio } from '../lib/audio';
-import { renderReceiptToSvg, renderReceiptToHtml } from '../lib/renderHtml';
+import { renderReceiptToSvg, renderReceiptToHtml, renderReceiptToPngDataUrl } from '../lib/renderHtml';
 import { copyToClipboard } from '../lib/clipboard';
 import { ApiModal } from './ApiModal';
 import { Sunmi3DPrinter } from './Sunmi3DPrinter';
@@ -21,7 +21,18 @@ interface ReceiptPreviewProps {
 }
 
 export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, rawString }) => {
-  const [viewMode, setViewMode] = useState<'3d' | '2d'>('3d');
+  const [viewMode, setViewMode] = useState<'3d' | '2d'>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (!gl) return '2d';
+      } catch {
+        return '2d';
+      }
+    }
+    return '3d';
+  });
   const [requestedCameraPreset, setRequestedCameraPreset] = useState<'macro' | '3/4' | 'front' | 'top' | 'floor'>('macro');
   const [isPrinting, setIsPrinting] = useState(false);
   const [printedLineCount, setPrintedLineCount] = useState<number>(data.lines.length);
@@ -77,45 +88,53 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
   const handleSaveAsPng = async () => {
     setIsExportMenuOpen(false);
     setIsExporting(true);
-    let tempContainer: HTMLDivElement | null = null;
     try {
-      // 1. Render full HTML string for light theme receipt
-      const htmlString = renderReceiptToHtml(data, { width, theme: 'light' });
-
-      // 2. Mount temporary offscreen DOM node
-      tempContainer = document.createElement('div');
-      tempContainer.style.position = 'fixed';
-      tempContainer.style.left = '-9999px';
-      tempContainer.style.top = '-9999px';
-      tempContainer.style.width = width === '58mm' ? '320px' : '400px';
-      tempContainer.style.backgroundColor = '#ffffff';
-      tempContainer.style.zIndex = '-9999';
-      tempContainer.style.overflow = 'visible';
-      tempContainer.innerHTML = htmlString;
-
-      document.body.appendChild(tempContainer);
-
-      const targetNode = (tempContainer.querySelector('#receipt-container') as HTMLElement) || tempContainer;
-
-      // 3. Convert offscreen DOM node to high-res PNG
-      const dataUrl = await toPng(targetNode, {
-        quality: 1.0,
-        pixelRatio: 2,
-        backgroundColor: '#ffffff',
-        cacheBust: true,
-      });
-
-      // 4. Trigger browser download
-      const link = document.createElement('a');
-      link.download = `receipt-${width}-${Date.now()}.png`;
-      link.href = dataUrl;
-      link.click();
-    } catch (err) {
-      console.error('Failed to export PNG receipt:', err);
-    } finally {
-      if (tempContainer && tempContainer.parentNode) {
-        tempContainer.parentNode.removeChild(tempContainer);
+      // 1. Direct high-DPI canvas generation (100% reliable, no network/font failures)
+      const dataUrl = renderReceiptToPngDataUrl(data, { width, theme: 'light' });
+      if (dataUrl) {
+        const link = document.createElement('a');
+        link.download = `receipt-${width}-${Date.now()}.png`;
+        link.href = dataUrl;
+        link.click();
+        return;
       }
+      throw new Error('Canvas renderer returned empty data');
+    } catch (err) {
+      console.warn('Canvas export fallback, trying html-to-image:', err);
+      let tempContainer: HTMLDivElement | null = null;
+      try {
+        const htmlString = renderReceiptToHtml(data, { width, theme: 'light' });
+
+        tempContainer = document.createElement('div');
+        tempContainer.style.position = 'fixed';
+        tempContainer.style.left = '-9999px';
+        tempContainer.style.top = '-9999px';
+        tempContainer.style.width = width === '58mm' ? '320px' : '400px';
+        tempContainer.style.backgroundColor = '#ffffff';
+        tempContainer.style.zIndex = '-9999';
+        tempContainer.innerHTML = htmlString;
+        document.body.appendChild(tempContainer);
+
+        const targetNode = (tempContainer.querySelector('#receipt-container') as HTMLElement) || tempContainer;
+        const domDataUrl = await toPng(targetNode, {
+          quality: 1.0,
+          pixelRatio: 2,
+          backgroundColor: '#ffffff',
+          skipFonts: true,
+        });
+
+        const link = document.createElement('a');
+        link.download = `receipt-${width}-${Date.now()}.png`;
+        link.href = domDataUrl;
+        link.click();
+      } catch (fallbackErr) {
+        console.error('Failed to export PNG receipt:', fallbackErr);
+      } finally {
+        if (tempContainer && tempContainer.parentNode) {
+          tempContainer.parentNode.removeChild(tempContainer);
+        }
+      }
+    } finally {
       setIsExporting(false);
     }
   };
@@ -499,6 +518,7 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({ data, width, raw
             activeCutAnimation={activeCutAnimation}
             requestedCameraPreset={requestedCameraPreset}
             onTriggerCut={triggerCutEffect}
+            onSwitchTo2D={() => setViewMode('2d')}
           />
         </div>
       ) : (

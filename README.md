@@ -6,6 +6,16 @@ An interactive Sunmi thermal printer preview simulator and high-performance ESC/
 
 ## 🚀 Key Features
 
+- **Distraction-Free Flat Receipt Page**: Clean, uncluttered thermal receipt canvas with authentic perforation tears, zero-pill metadata typography, and instant export options.
+- **Comprehensive Export Suite**: 
+  - **PNG Image**: 2x high-resolution crisp raster image download.
+  - **SVG Vector**: Scalable vector graphics export.
+  - **Direct Print / PDF**: Native browser print dialog optimized with `@media print` thermal formatting.
+  - **HTML Code**: Self-contained inline-styled HTML snippet for embeds.
+  - **Clean Plain Text**: Text extraction stripped of raw escape sequences with preserved POS column alignments.
+  - **ESC/POS Binary**: Raw `.bin` byte stream for direct POS printer network sending.
+  - **Image Data URL**: Base64 data URI for rapid embedding in apps and webhooks.
+- **Paper Finishes & Live Zoom**: Switch between Crisp Thermal White, Warm Tinted POS Paper, and Monochromatic Inverted Dark mode with 60%–180% responsive zoom.
 - **Real-time ESC/POS Visualizer**: Emulates 80mm and 58mm thermal printers with live feed animations, interactive 3D Sunmi printer simulator, and automatic guillotine cut displays.
 - **OpenAPI 3.0 & Interactive Swagger UI**: Built-in interactive Swagger UI endpoint at `/docs` and raw OpenAPI schema at `/api/openapi.json`.
 - **E-Commerce & POS Webhook Integration**: Dedicated `/api/webhook` endpoint converts JSON orders (from Shopify, Stripe, Square, or custom POS) directly into formatted thermal receipts.
@@ -250,3 +260,13 @@ npm run dev
 npm run build
 npm start
 ```
+
+---
+
+## 👨‍💻 Developer Attribution
+
+- **Developer:** [Suhail Akhtar](https://suhail.top)
+- **Website:** [https://suhail.top](https://suhail.top)
+- **Project:** Sunmi Printer Simulation Studio & Flat Receipt Engine
+- **License:** MIT
+

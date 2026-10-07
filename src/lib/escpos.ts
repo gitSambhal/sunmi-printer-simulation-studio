@@ -159,10 +159,15 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
           currentLineAlign = newAlign;
         }
         i += 2;
-      } else if (next === 0x45) { // ESC E (Bold)
+      } else if (next === 0x45) { // ESC E (Bold/Emphasized)
         flushSpan();
-        const val = (data[i + 1] & 1) === 1;
-        currentStyle.bold = val;
+        const param = data[i + 1] ?? 0;
+        currentStyle.bold = param === 1 || param === 49 || (param > 0 && param !== 48);
+        i += 2;
+      } else if (next === 0x47) { // ESC G (Double-strike)
+        flushSpan();
+        const param = data[i + 1] ?? 0;
+        currentStyle.bold = param === 1 || param === 49 || (param > 0 && param !== 48);
         i += 2;
       } else if (next === 0x34) { // ESC 4 (Italic ON)
         flushSpan();
@@ -177,7 +182,7 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
         const param = data[i + 1] ?? 0;
         currentStyle.underline = param === 1 || param === 2 || param === 49 || param === 50;
         i += 2;
-      } else if (next === 0x7B) { // ESC { (Reverse Mode)
+      } else if (next === 0x7B) { // ESC { (Upside down / Reverse Mode)
         flushSpan();
         const param = data[i + 1] ?? 0;
         const val = param === 1 || param === 49 || (param > 0 && param !== 48);
@@ -206,18 +211,31 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
           });
         }
         i += 2;
-      } else if (next === 0x42) { // ESC B (Buzzer sound)
+      } else if (next === 0x42) { // ESC B (Buzzer sound: ESC B n t)
         flushSpan();
         beepCount++;
         pendingBeep = true;
         controlEvents.push({ type: 'beep', label: 'Buzzer Sound (ESC B)', lineIndex: currentLineIndex() });
-        i += 3; // ESC B n t
-      } else if (next === 0x70) { // ESC p (Pulse / Cash drawer)
+        i += 3;
+      } else if (next === 0x70) { // ESC p (Pulse / Cash drawer: ESC p m t1 t2)
         flushSpan();
         drawerCount++;
         pendingDrawer = true;
         controlEvents.push({ type: 'drawer', label: 'Open Cash Drawer (ESC p)', lineIndex: currentLineIndex() });
-        i += 4; // ESC p m t1 t2
+        i += 4;
+      } else if (next === 0x32) { // ESC 2 (Select default line spacing ~1/6 inch)
+        flushSpan();
+        i++;
+      } else if (next === 0x33) { // ESC 3 n (Set line spacing to n dots)
+        flushSpan();
+        i += 2; // ESC 3 n
+      } else if (next === 0x30 || next === 0x31) { // ESC 0 / ESC 1 (Line spacing presets)
+        flushSpan();
+        i++;
+      } else if (next === 0x41 || next === 0x4A || next === 0x64 || next === 0x4D || next === 0x20 || next === 0x74) {
+        // Multi-byte 2-byte commands with 1 param: ESC A n, ESC J n, ESC d n, ESC M n, ESC SP n, ESC t n
+        flushSpan();
+        i += 2;
       } else {
         i++;
       }
@@ -259,6 +277,13 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
           });
         }
         i += 2;
+      } else if (next === 0x4C || next === 0x57) { // GS L / GS W (2 parameter bytes)
+        flushSpan();
+        i += 3;
+      } else if (next === 0x48 || next === 0x66 || next === 0x68 || next === 0x77 || next === 0x72 || next === 0x61) {
+        // 1 parameter byte commands: GS H n, GS f n, GS h n, GS w n, GS r n, GS a n
+        flushSpan();
+        i += 2;
       } else {
         i++;
       }
@@ -272,6 +297,9 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
       i++;
     } else if (byte === 0x0D) { // CR
       i++;
+    } else if (byte < 0x20 && byte !== 0x09) {
+      // Filter unhandled non-printable control characters (0x00-0x08, 0x0B, 0x0C, 0x0E-0x1F)
+      i++;
     } else {
       // Regular character - parse string
       justFlushedOnAlignChange = false;
@@ -282,12 +310,15 @@ export function parseEscPos(data: Uint8Array): ReceiptData {
         data[i] !== 0x1D && 
         data[i] !== 0x0A && 
         data[i] !== 0x0D &&
-        data[i] !== 0x07
+        data[i] !== 0x07 &&
+        (data[i] >= 0x20 || data[i] === 0x09)
       ) {
         i++;
       }
-      const textChunk = new TextDecoder('utf-8', { fatal: false }).decode(data.slice(start, i));
-      currentText += textChunk;
+      const rawTextChunk = new TextDecoder('utf-8', { fatal: false }).decode(data.slice(start, i));
+      // Sanitize illegal control characters from decoded text
+      const cleanChunk = rawTextChunk.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '');
+      currentText += cleanChunk;
     }
   }
 
@@ -334,3 +365,22 @@ export function escapedStringToBytes(text: string): Uint8Array {
   }
   return new Uint8Array(result);
 }
+
+export function receiptDataToPlainText(data: ReceiptData, width: '58mm' | '80mm' = '80mm'): string {
+  const maxCols = width === '58mm' ? 32 : 48;
+  return data.lines
+    .map((line) => {
+      const text = line.spans.map((s) => s.text).join('');
+      if (line.align === Alignment.CENTER) {
+        const pad = Math.max(0, Math.floor((maxCols - text.length) / 2));
+        return ' '.repeat(pad) + text;
+      }
+      if (line.align === Alignment.RIGHT) {
+        const pad = Math.max(0, maxCols - text.length);
+        return ' '.repeat(pad) + text;
+      }
+      return text;
+    })
+    .join('\n');
+}
+

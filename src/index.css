@@ -59,4 +59,42 @@
   animation: blade-slice-right 0.8s ease-in-out forwards;
 }
 
+/* Print-optimized styling for flat receipt */
+@media print {
+  @page {
+    margin: 0;
+    size: auto;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  #flat-receipt-printable, #flat-receipt-printable * {
+    visibility: visible;
+  }
+
+  #flat-receipt-printable {
+    position: absolute;
+    left: 50% !important;
+    top: 20px !important;
+    transform: translateX(-50%) !important;
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 auto !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  header, footer, nav, aside, button {
+    display: none !important;
+  }
+}
+
+
 
